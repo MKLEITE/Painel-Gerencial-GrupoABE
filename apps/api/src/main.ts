@@ -39,7 +39,6 @@ async function bootstrap(): Promise<void> {
 
   const port = config.get<number>('API_PORT') ?? 3333;
   await app.listen(port);
-  // eslint-disable-next-line no-console
   console.warn(`[api] ouvindo na porta ${port}`);
 }
 

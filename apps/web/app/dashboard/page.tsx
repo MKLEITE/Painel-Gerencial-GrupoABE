@@ -59,13 +59,17 @@ export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [redirecionando, setRedirecionando] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosDashboard>(FILTROS_INICIAIS);
 
   useEffect(() => {
     me()
       .then(setUser)
-      .catch(() => router.replace('/login'))
+      .catch(() => {
+        setRedirecionando(true);
+        router.replace('/login');
+      })
       .finally(() => setCarregando(false));
   }, [router]);
 
@@ -83,7 +87,7 @@ export default function DashboardPage() {
     setFiltros((prev) => ({ ...prev, ...patch }));
   }
 
-  if (carregando) {
+  if (carregando || redirecionando || !user) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -93,13 +97,13 @@ export default function DashboardPage() {
               <LayoutDashboard className="h-5 w-5" />
             </span>
           </div>
-          <p className="text-sm text-muted-foreground">Carregando seu painel…</p>
+          <p className="text-sm text-muted-foreground">
+            {redirecionando ? 'Redirecionando…' : 'Carregando seu painel…'}
+          </p>
         </div>
       </main>
     );
   }
-
-  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">

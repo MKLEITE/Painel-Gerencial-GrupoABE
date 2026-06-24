@@ -28,7 +28,8 @@ const contentSecurityPolicy = isDev
     ].join('; ')
   : [
       "default-src 'self'",
-      "script-src 'self'",
+      // Next.js App Router injeta scripts inline para hidratação/RSC — sem isso a página fica em branco.
+      "script-src 'self' 'unsafe-inline'",
       // Tailwind/React aplicam estilos inline (style="") e next/font injeta <style>.
       "style-src 'self' 'unsafe-inline'",
       "connect-src 'self'",

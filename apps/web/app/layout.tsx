@@ -33,7 +33,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const cookieStore = await cookies();
   const headersList = await headers();
   const pathname = headersList.get('x-pathname') ?? '';
-  const isLoginRoute = pathname === '/login' || pathname.startsWith('/login/');
+  const isLoginRoute =
+    headersList.get('x-login-route') === '1' ||
+    cookieStore.get('login-route')?.value === '1' ||
+    pathname === '/login' ||
+    pathname.startsWith('/login/');
 
   const savedTheme = cookieStore.get('theme')?.value;
   const theme =

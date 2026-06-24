@@ -3,10 +3,12 @@ import base from '@abe/config/eslint';
 export default [
   ...base,
   {
-    languageOptions: {
-      parserOptions: {
-        sourceType: 'commonjs',
-      },
+    ignores: ['dist/**', 'scripts/**'],
+  },
+  {
+    files: ['prisma/seed.ts'],
+    rules: {
+      'no-console': 'off',
     },
   },
 ];

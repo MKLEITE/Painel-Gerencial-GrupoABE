@@ -71,6 +71,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [redirecionando, setRedirecionando] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
 
   const meta = pageMeta(pathname);
@@ -79,12 +80,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
     me()
       .then((u) => {
         if (!isSuperAdmin(u)) {
+          setRedirecionando(true);
           router.replace('/dashboard');
           return;
         }
         setUser(u);
       })
-      .catch(() => router.replace('/login'))
+      .catch(() => {
+        setRedirecionando(true);
+        router.replace('/login');
+      })
       .finally(() => setCarregando(false));
   }, [router]);
 
@@ -93,7 +98,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     router.replace('/login');
   }
 
-  if (carregando) {
+  if (carregando || redirecionando || !user) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -103,13 +108,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <Shield className="h-5 w-5" />
             </span>
           </div>
-          <p className="text-sm text-muted-foreground">Carregando administração…</p>
+          <p className="text-sm text-muted-foreground">
+            {redirecionando ? 'Redirecionando…' : 'Carregando administração…'}
+          </p>
         </div>
       </main>
     );
   }
-
-  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">
