@@ -8,6 +8,7 @@ RUN corepack enable
 WORKDIR /repo
 
 FROM base AS build
+ENV DOCKER_BUILD=1
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @abe/web build

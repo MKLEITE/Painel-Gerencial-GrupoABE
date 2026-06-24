@@ -203,7 +203,6 @@ export default function HomePage() {
                 >
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-white shadow-soft transition-transform duration-300 group-hover:scale-105">
                     {f.logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={f.logo} alt={f.nome} className="h-8 w-8 object-contain" />
                     ) : (
                       <span className="font-display text-2xl font-bold text-gradient">

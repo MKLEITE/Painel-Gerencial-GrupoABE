@@ -92,7 +92,6 @@ export function ComposicaoAtores({ atores }: { atores: AtorComposicao[] }) {
                 className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-muted/40"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={ator.logo} alt="" className="h-5 w-5 object-contain" />
                 </span>
                 <div className="min-w-0 flex-1">

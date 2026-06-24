@@ -99,7 +99,6 @@ export function ResponsavelSection({ mode, credorId, values, onChange }: Respons
           <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted/40">
             {values.fotoUrl ? (
               <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={values.fotoUrl}
                   alt="Foto do responsável"

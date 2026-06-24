@@ -6,6 +6,8 @@
 /** Backend NestJS — usado pelo rewrite para manter cookies same-origin no browser. */
 const apiInternalUrl = process.env.API_INTERNAL_URL ?? 'http://localhost:3333';
 const isDev = process.env.NODE_ENV !== 'production';
+/** Docker força standalone; Vercel usa serverless nativo. */
+const useStandalone = !process.env.VERCEL && process.env.DOCKER_BUILD === '1';
 
 /**
  * CSP em dev precisa permitir scripts inline/eval e WebSocket (HMR do Next.js).
@@ -53,7 +55,8 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: 'standalone',
+  // standalone é só para Docker; na Vercel (VERCEL=1) quebra serverless functions.
+  ...(useStandalone ? { output: 'standalone' } : {}),
   async rewrites() {
     return [
       {

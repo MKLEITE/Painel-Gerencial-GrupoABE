@@ -18,7 +18,6 @@ export function UserAvatar({ nome, fotoUrl, size = 'sm', className = '' }: UserA
 
   if (fotoUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={fotoUrl}
         alt={`Foto de ${nome}`}
