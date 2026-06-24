@@ -77,6 +77,7 @@ type CredorRow = {
       nome: string;
       email: string;
       telefone: string | null;
+      fotoUrl: string | null;
       ativo: boolean;
     }[];
   };
