@@ -1,0 +1,41 @@
+# Ambiente de desenvolvimento local.
+# Sobe um PostgreSQL e o Adminer (UI web para inspecionar o banco).
+# Uso:
+#   docker compose up -d        # sobe os serviços
+#   docker compose down         # para os serviços (mantém os dados)
+#   docker compose down -v      # para e APAGA os dados
+#
+# Em produção NÃO usamos este compose: o banco é o AWS RDS (ver docs/07).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: abe-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: painel_abe
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d painel_abe"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:4
+    container_name: abe-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local

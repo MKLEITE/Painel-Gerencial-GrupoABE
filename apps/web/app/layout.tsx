@@ -1,0 +1,61 @@
+import type { Metadata, Viewport } from 'next';
+import { Inter, Sora } from 'next/font/google';
+import { cookies, headers } from 'next/headers';
+import { ThemeProvider } from '@/components/theme/theme-provider';
+import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const sora = Sora({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: 'Painel Gerencial Grupo ABE',
+  description:
+    'Portal único, seguro e multiempresa que consolida toda a régua de cobrança do Grupo ABE em uma só visão.',
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f7f9fc' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0f1e' },
+  ],
+};
+
+export default async function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const cookieStore = await cookies();
+  const headersList = await headers();
+  const pathname = headersList.get('x-pathname') ?? '';
+  const isLoginRoute = pathname === '/login' || pathname.startsWith('/login/');
+
+  const savedTheme = cookieStore.get('theme')?.value;
+  const theme =
+    savedTheme === 'dark' || savedTheme === 'light'
+      ? savedTheme
+      : isLoginRoute
+        ? 'dark'
+        : 'light';
+
+  return (
+    <html
+      lang="pt-BR"
+      data-scroll-behavior="smooth"
+      {...(isLoginRoute ? { 'data-login': '' } : {})}
+      className={`${inter.variable} ${sora.variable} ${theme === 'dark' ? 'dark' : ''}`}
+      suppressHydrationWarning
+    >
+      <body>
+        <ThemeProvider initialTheme={theme}>{children}</ThemeProvider>
+      </body>
+    </html>
+  );
+}

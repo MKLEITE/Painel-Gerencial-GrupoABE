@@ -1,0 +1,44 @@
+# Dependências
+node_modules/
+.pnpm-store/
+
+# Build / saída
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Cache de ferramentas
+.turbo/
+.eslintcache
+
+# Variáveis de ambiente (NUNCA versionar segredos)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editores / IDEs
+.idea/
+*.swp
+
+# Terraform (estado e variáveis sensíveis)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# Arquivos temporários do Office
+~$*
