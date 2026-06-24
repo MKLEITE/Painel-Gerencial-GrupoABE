@@ -4,103 +4,102 @@
 
 | Fase | Nome | Objetivo | Resultado |
 |------|------|----------|-----------|
-| **0** | **Fundação** | Planejar, documentar e preparar a base | Esta documentação + esqueleto técnico |
+| **0** | **Fundação** | Planejar, documentar e preparar a base | Documentação + esqueleto técnico |
 | **1** | **MVP** | 1 integração real + dashboard + busca + auth | Portal usável por 1 credor piloto |
 | **2** | **Integrações completas** | Conectar as 4 fontes + ações admin | Visão 360º completa |
 | **3** | **Multiempresa & produto** | Onboarding self-service, planos, billing | Vendável em escala |
 | **4** | **Inteligência** | Relatórios avançados, BI, previsões | Diferenciação competitiva |
 
-> Faseamento detalhado de 1–4 será refinado ao fim da Fase 0. O foco agora é entregar a Fase 0 bem feita.
-
 ## 9.2 O que é a Fase 0 (escopo desta fase)
 
-A Fase 0 **não escreve o produto**. Ela cria a **fundação** sobre a qual o produto será construído com
-segurança e qualidade. Entregáveis:
+A Fase 0 **não escreve o produto completo**. Ela cria a **fundação** sobre a qual o produto será construído.
 
-### A) Documentação (este diretório `docs/`) — ✅ em andamento
-- Visão/escopo, arquitetura, dados, backend, frontend, segurança/LGPD, infra, resiliência, roadmap.
+### A) Documentação (`docs/`) — ✅ em andamento
+
+Visão, arquitetura, dados, backend, frontend, segurança/LGPD, infra, resiliência, roadmap.
 
 ### B) Decisões registradas (ADRs) — `docs/adr/`
-- Stack, estilo arquitetural, identidade, multi-tenant, acesso ao legado.
 
-### C) Esqueleto do repositório (sem lógica de negócio ainda)
-- Monorepo (`apps/api`, `apps/web`, `apps/workers`, `packages/*`, `infra/`).
-- Configuração de lint, format, commit hooks, Conventional Commits.
-- Pipeline de CI base (lint, testes, scan de segredos, build).
-- `.gitignore`, `.editorconfig`, `README` de cada app.
+Stack Supabase + Next.js, estilo arquitetural, identidade, multi-tenant, acesso ao legado.
 
-### D) Modelo de dados canônico (rascunho versionado)
-- Esquema lógico das entidades (doc 03) + primeira migração base (tenants/usuários/RLS).
-- Tabela de-para de status (configuração).
+### C) Esqueleto do repositório
+
+- Monorepo (`apps/web`, `apps/workers`, `packages/*`, `supabase/`).
+- Seed em `supabase/seed.mjs`.
+- Lint, format, commit hooks, Conventional Commits.
+- CI base (GitHub Actions).
+
+### D) Modelo de dados inicial
+
+- Schema em `supabase/migrations/001_initial_schema.sql` (tenants, usuarios, credores, RLS).
 
 ### E) Baseline de segurança
-- **Threat model** por fluxo (login, busca, ação admin, sincronização).
-- Política de mascaramento de CPF/CNPJ definida.
-- Definição do provedor de identidade (ADR-0003) e desenho de RBAC + RLS.
 
-### F) Esqueleto de infraestrutura (IaC)
-- Estrutura Terraform (`infra/modules`, `infra/envs`) **sem provisionar recursos pagos** ainda
-  (ou só uma VPC/dev mínima), pronta para a Fase 1.
+- Supabase Auth + RLS.
+- Service role restrita a Route Handlers admin.
+- Política de mascaramento de CPF/CNPJ definida.
+
+### F) Infraestrutura
+
+- **Supabase** (PostgreSQL + Auth) — projeto provisionado.
+- **Vercel** — deploy do `apps/web` documentado.
+- Sem IaC próprio — configuração via Dashboards.
 
 ### G) Padrões e governança
-- Definition of Done, padrão de PR, política de branches, padrão de testes.
-- Plano de resposta a incidentes (rascunho) e processo LGPD (RoPA, DPO).
+
+- Definition of Done, padrão de PR, política de branches.
 
 ## 9.3 Checklist de conclusão da Fase 0
 
 - [x] Documentação técnica completa em `docs/`.
+- [x] Stack Supabase + Next.js + Vercel definida (ADR-0001, ADR-0003).
+- [x] Schema inicial + RLS no Supabase.
+- [x] Auth funcional (Supabase Auth + admin Route Handlers).
 - [ ] ADRs revisados e aprovados.
-- [ ] Decisões pendentes (seção 9.5) confirmadas com o time/negócio.
-- [ ] Acesso e documentação das APIs das fontes confirmados (Avantpay, ABEWeb, Acordo Seguro).
+- [ ] Acesso e documentação das APIs das fontes confirmados.
 - [ ] Forma de acesso seguro ao SQL Server 2005 validada com a equipe ABE.
-- [ ] Esqueleto do monorepo criado e no GitHub.
 - [ ] CI base rodando verde.
-- [ ] Esqueleto de IaC versionado.
-- [ ] Modelo canônico inicial + primeira migração com RLS.
+- [ ] Deploy Vercel em produção/preview testado.
 - [ ] Threat model documentado.
-- [ ] Provedor de identidade escolhido.
 - [ ] Plano da Fase 1 (MVP) detalhado e estimado.
 
-## 9.4 Proposta de MVP (Fase 1) — para alinhar expectativas
+## 9.4 Proposta de MVP (Fase 1)
 
-Menor fatia que entrega valor e prova a arquitetura:
-1. **Auth** (OIDC + RBAC + tenant) com 1 tenant piloto.
-2. **Uma integração real** (sugestão: **Acordo Seguro via webhook** ou **Avantpay via API**, a que
-   tiver acesso/documentação primeiro).
-3. **Sincronização → réplica PostgreSQL** (modelo canônico) com idempotência.
-4. **Dashboard** com KPIs reais daquela fonte + **listagem consolidada**.
-5. **Busca por CPF/CNPJ** (mascarada) na fonte integrada.
-6. **Observabilidade e auditoria** mínimas + deploy em staging.
+Menor fatia que entrega valor:
 
-Isso valida ponta a ponta (segurança, dados, UI) com risco controlado, antes de plugar as 4 fontes.
+1. **Auth** (Supabase Auth + RBAC + tenant) com 1 tenant piloto.
+2. **Uma integração real** (Acordo Seguro via webhook ou Avantpay via API).
+3. **Sincronização → Supabase PostgreSQL** com idempotência.
+4. **Dashboard** com KPIs reais + listagem consolidada.
+5. **Busca por CPF/CNPJ** (mascarada).
+6. **Observabilidade e auditoria** mínimas + deploy Vercel.
 
-## 9.5 Decisões a confirmar (antes/início da Fase 1)
+## 9.5 Decisões confirmadas / pendentes
 
-Estas decisões têm um **default recomendado**, mas precisam do seu aval por impactarem custo/equipe:
-
-| # | Decisão | Recomendação (default) | Alternativa |
-|---|---------|------------------------|-------------|
-| 1 | Linguagem do backend | **TypeScript/NestJS** | Java/Spring Boot |
-| 2 | Provedor de identidade | **Amazon Cognito** (gerenciado) | Keycloak (auto-hospedado, mais controle) |
-| 3 | Primeira fonte a integrar (MVP) | a de **acesso/documentação mais fácil** | definir com a equipe ABE |
-| 4 | Conta(s) AWS | contas separadas por ambiente | conta única com isolamento por tags |
-| 5 | Equipe e prazo | a definir | a definir |
+| # | Decisão | Status | Escolha |
+|---|---------|--------|---------|
+| 1 | Frontend + API serverless | ✅ Decidido | Next.js 15 na Vercel |
+| 2 | Backend de dados | ✅ Decidido | Supabase (PostgreSQL + Auth + RLS) |
+| 3 | Provedor de identidade | ✅ Decidido | Supabase Auth (ADR-0003) |
+| 4 | Primeira fonte a integrar (MVP) | ⏳ Pendente | a de acesso/documentação mais fácil |
+| 5 | Workers de integração (hosting) | ⏳ Pendente | Vercel Cron / processo dedicado / Edge Functions |
+| 6 | Equipe e prazo | ⏳ Pendente | a definir |
 
 ## 9.6 Riscos e mitigação
 
 | Risco | Impacto | Mitigação |
 |-------|---------|-----------|
-| APIs das fontes sem documentação/instáveis | Atraso na integração | Validar acesso na Fase 0; começar pela mais madura |
-| SQL Server 2005 (EOL) | Performance/segurança do legado | Agente on-premise, leitura incremental fora de pico, nunca em tempo real |
-| Vazamento entre tenants | Crítico (LGPD/reputação) | RLS + RBAC + testes de isolamento + auditoria |
-| Cobrança duplicada na transferência | Financeiro/confiança | Idempotência + reconciliação + auditoria |
-| Escopo crescer demais (scope creep) | Atraso | Faseamento rígido; MVP enxuto |
-| Custo de nuvem | Financeiro | Começar enxuto, autoscaling, tags de custo |
+| APIs das fontes sem documentação | Atraso na integração | Validar acesso na Fase 0; começar pela mais madura |
+| SQL Server 2005 (EOL) | Performance/segurança do legado | Agente on-premise → Supabase; nunca em tempo real |
+| Vazamento entre tenants | Crítico (LGPD) | RLS + RBAC + testes de isolamento |
+| Cobrança duplicada na transferência | Financeiro/confiança | Idempotência + reconciliação |
+| Exposição da service role key | Crítico | Somente servidor; nunca `NEXT_PUBLIC_*` |
+| Escopo crescer demais | Atraso | Faseamento rígido; MVP enxuto |
 
 ## 9.7 Próximos passos imediatos
 
-1. Revisar e aprovar esta documentação e os ADRs.
-2. Confirmar as decisões da seção 9.5.
+1. Revisar e aprovar documentação e ADRs atualizados.
+2. Confirmar primeira fonte para MVP (seção 9.5).
 3. Levantar acesso/documentação das APIs das fontes.
-4. Criar o esqueleto do monorepo + CI e subir ao GitHub.
+4. Deploy Vercel em produção com variáveis Supabase.
 5. Detalhar e estimar a Fase 1 (MVP).

@@ -74,22 +74,22 @@ export interface CreateCredorResult {
 }
 
 export function listCredores(): Promise<Credor[]> {
-  return apiFetch('/v1/admin/credores');
+  return apiFetch('/admin/credores');
 }
 
 export function getCredor(id: string): Promise<Credor> {
-  return apiFetch(`/v1/admin/credores/${id}`);
+  return apiFetch(`/admin/credores/${id}`);
 }
 
 export function createCredor(body: CreateCredorPayload): Promise<CreateCredorResult> {
-  return apiFetch('/v1/admin/credores', { method: 'POST', body: JSON.stringify(body) });
+  return apiFetch('/admin/credores', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export function updateCredor(
   id: string,
   body: Partial<Omit<CreateCredorPayload, 'responsavel'>>,
 ): Promise<Credor> {
-  return apiFetch(`/v1/admin/credores/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+  return apiFetch(`/admin/credores/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
 }
 
 export function updateResponsavelCredor(
@@ -103,18 +103,18 @@ export function updateResponsavelCredor(
     fotoUrl?: string | null;
   },
 ): Promise<{ responsavel: CredorResponsavel; senha?: string }> {
-  return apiFetch(`/v1/admin/credores/${credorId}/responsavel`, {
+  return apiFetch(`/admin/credores/${credorId}/responsavel`, {
     method: 'PATCH',
     body: JSON.stringify(body),
   });
 }
 
 export function listUsuarios(): Promise<AdminUsuario[]> {
-  return apiFetch('/v1/admin/usuarios');
+  return apiFetch('/admin/usuarios');
 }
 
 export function getUsuario(id: string): Promise<AdminUsuario> {
-  return apiFetch(`/v1/admin/usuarios/${id}`);
+  return apiFetch(`/admin/usuarios/${id}`);
 }
 
 export function createUsuario(body: {
@@ -123,12 +123,12 @@ export function createUsuario(body: {
   senha: string;
   papel: string;
 }): Promise<AdminUsuario> {
-  return apiFetch('/v1/admin/usuarios', { method: 'POST', body: JSON.stringify(body) });
+  return apiFetch('/admin/usuarios', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export function updateUsuario(
   id: string,
   body: Partial<{ nome: string; papel: string; ativo: boolean; senha: string }>,
 ): Promise<AdminUsuario> {
-  return apiFetch(`/v1/admin/usuarios/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+  return apiFetch(`/admin/usuarios/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
 }

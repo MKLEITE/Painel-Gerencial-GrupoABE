@@ -1,4 +1,3 @@
-apps/api/**
 apps/workers/**
 **/dist/**
 !apps/web/**

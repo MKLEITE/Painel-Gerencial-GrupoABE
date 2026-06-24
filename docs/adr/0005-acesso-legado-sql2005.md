@@ -1,36 +1,43 @@
 # ADR-0005 — Acesso ao legado SQL Server 2005
 
-Status: Proposto
-Data: 2026-06-18
+Status: **Aceito**
+Data: 2026-06-18 · Atualizado: 2026-06-24
 
 ## Contexto
+
 O sistema interno do ABE roda em **Delphi + SQL Server 2005**, que está em **fim de vida** (sem
-suporte/atualizações de segurança) e é a base operacional crítica. O documento original alerta para
-**não consultar esse banco em tempo real** pelo portal, sob risco de travar a operação. Também não
-podemos expor o SQL 2005 à internet.
+suporte/atualizações de segurança) e é a base operacional crítica. O portal **não pode consultar
+esse banco em tempo real**, sob risco de travar a operação. Também não podemos expor o SQL 2005 à internet.
 
 ## Decisão
+
 Implementar um **agente de sincronização on-premise**, executado no ambiente do ABE, que:
+
 1. Lê **incrementos** do SQL 2005 (via coluna de controle `data_alteracao` ou triggers que populam uma
    **tabela de staging** dedicada), em janelas agendadas e **fora de pico**.
-2. **Empurra** os incrementos para a AWS por **canal seguro** (HTTPS com mTLS, ou VPN/Direct Connect,
-   ou fila), nunca abrindo o banco para a internet.
-3. A AWS faz **upsert idempotente** no modelo canônico. O **portal só lê a réplica**.
+2. **Empurra** os incrementos para o **Supabase PostgreSQL** (modelo canônico) por **HTTPS** autenticado,
+   nunca abrindo o banco legado para a internet.
+3. Faz **upsert idempotente** nas tabelas `public.*` do Supabase. O **portal só lê a réplica**.
+
+Destino dos dados: projeto Supabase `https://vkzefmedwxvpqcivparz.supabase.co`.
 
 ## Consequências
+
 **Positivas**
+
 - O legado nunca é exposto nem consultado em tempo real pelo portal.
 - Carga controlada e fora de pico → sem impacto na operação Delphi.
-- Permite reconstruir a réplica por re-sincronização em caso de perda.
+- Réplica no Supabase pode ser reconstruída por re-sincronização.
+- RLS e Auth já disponíveis no destino.
 
 **Negativas**
-- Consistência **eventual** (a réplica fica alguns minutos atrás) — tratada com indicador de frescor na UI.
-- Requer instalar e manter um agente no ambiente do cliente (operacional).
-- SQL 2005 não tem CDC moderno → detecção de mudança depende de coluna de controle/triggers (a validar
-  com a equipe ABE).
+
+- Consistência **eventual** (réplica minutos atrás) — indicador de frescor na UI.
+- Requer instalar e manter agente no ambiente ABE.
+- SQL 2005 não tem CDC moderno → detecção de mudança via coluna de controle/triggers (validar com equipe ABE).
 
 ## Alternativas consideradas
+
 - **Conexão direta do portal ao SQL 2005:** rejeitada (risco à operação e à segurança).
-- **Migrar o SQL 2005 para versão moderna primeiro:** ideal a longo prazo, mas fora do escopo/Prazo
-  desta fase; pode ser recomendado ao cliente como evolução.
-- **Replicação nativa do SQL Server:** limitada/arriscada nessa versão antiga e pode exigir mudanças no legado.
+- **Migrar SQL 2005 antes do portal:** ideal a longo prazo, fora do escopo atual.
+- **Replicação nativa SQL Server:** limitada nessa versão; risco ao legado.

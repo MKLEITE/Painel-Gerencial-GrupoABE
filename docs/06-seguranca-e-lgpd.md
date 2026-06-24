@@ -8,153 +8,142 @@
 
 | Ameaça | Exemplo no nosso contexto | Mitigação principal |
 |--------|---------------------------|---------------------|
-| **Spoofing** | Alguém se passa por um credor | OIDC + MFA, tokens curtos, sessão segura |
-| **Tampering** | Alterar dados em trânsito/repouso | TLS, integridade, RLS, auditoria |
+| **Spoofing** | Alguém se passa por um credor | Supabase Auth, sessão SSR, tokens gerenciados |
+| **Tampering** | Alterar dados em trânsito/repouso | TLS, RLS, auditoria |
 | **Repudiation** | Negar que executou uma transferência | Audit log imutável (quem/quando/IP) |
-| **Information Disclosure** | Vazar CPF/dívida de um devedor | Criptografia, mascaramento, isolamento de tenant |
-| **Denial of Service** | Derrubar o portal | WAF, rate limit, CloudFront, autoscaling |
+| **Information Disclosure** | Vazar CPF/dívida de um devedor | RLS, mascaramento, isolamento de tenant |
+| **Denial of Service** | Derrubar o portal | Rate limit Vercel/Supabase, degradação graciosa |
 | **Elevation of Privilege** | Operador virar admin / ver outro tenant | RBAC + RLS, negar por padrão |
-
-> Um threat model detalhado (por fluxo) é entregável da Fase 0 — ver doc 09. Onde houver dúvida,
-> assume-se a opção mais restritiva.
 
 ## 6.2 Isolamento de tenant (multicamada)
 
 O maior risco de um SaaS multiempresa é **um credor ver dados de outro**. Defesa em profundidade:
 
-1. **No token:** o `tenant_id` vem do token (assinado), nunca do cliente.
-2. **Na aplicação:** um guard injeta o tenant no contexto; todo repositório filtra por ele.
-3. **No banco (RLS):** **Row-Level Security** no PostgreSQL garante que, mesmo com bug na aplicação,
-   uma sessão só enxergue linhas do seu tenant.
+1. **No perfil:** `tenant_id` vem de `public.usuarios`, vinculado ao usuário autenticado.
+2. **Na aplicação:** Route Handlers e queries filtram por tenant; admin usa service role com validação explícita.
+3. **No banco (RLS):** **Row-Level Security** no PostgreSQL garante que, mesmo com bug na aplicação, uma sessão anon só enxergue linhas do seu tenant.
 
-Exemplo de política RLS (conceitual):
+Exemplo de política RLS (implementado em `001_initial_schema.sql`):
 
 ```sql
-ALTER TABLE titulo ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.credores ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY tenant_isolation ON titulo
-  USING (tenant_id = current_setting('app.tenant_id')::uuid);
+CREATE POLICY credores_tenant_read ON public.credores
+  FOR SELECT
+  USING (tenant_id = public.current_tenant_id());
 ```
 
-A aplicação define `app.tenant_id` por conexão/transação a partir do token. **Nenhuma query** roda
-sem esse contexto.
+Políticas para `SUPER_ADMIN` usam função `is_super_admin()` com `SECURITY DEFINER`.
 
 ## 6.3 Autenticação
 
-- **Protocolo:** OAuth2/OIDC. Provedor: Amazon Cognito **ou** Keycloak ([ADR-0003](adr/0003-identidade-autenticacao.md)).
-- **MFA obrigatório** para `admin` e `super_admin`; recomendado para todos.
-- **Tokens:** access token curto (~15 min) + refresh token rotacionado e revogável.
-- **Armazenamento do token:** cookie `HttpOnly` + `Secure` + `SameSite=Strict`.
-- **Senhas** (se houver login local): hashing **Argon2id** (ou bcrypt forte), política de força,
-  bloqueio progressivo após tentativas falhas, proteção contra credential stuffing.
-- **Sessão:** expiração por inatividade; logout invalida refresh token.
+- **Provedor:** [Supabase Auth](https://supabase.com/docs/guides/auth) — decisão em [ADR-0003](adr/0003-identidade-autenticacao.md).
+- **Implementação:** `@supabase/ssr` em `apps/web/lib/supabase/` + `lib/auth.ts`.
+- **Credenciais:** armazenadas em `auth.users` — **não há `senha_hash` em `public.usuarios`**.
+- **Sessão:** cookies gerenciados pelo middleware SSR; refresh automático.
+- **MFA:** suportado pelo Supabase Auth — habilitar para admins em produção (recomendado).
+- **Logout:** `supabase.auth.signOut()` invalida sessão.
 
 ## 6.4 Autorização (RBAC + escopo de tenant)
 
-- Papéis: `super_admin` (MK), `admin_credor`, `operador`, `viewer` (ver doc 01).
+- Papéis: `SUPER_ADMIN`, `ADMIN_CREDOR`, `OPERADOR`, `VIEWER`.
 - **Negar por padrão**: sem permissão explícita = 403.
-- Permissões por recurso/ação (ex.: `acoes:transferir` só `admin_credor`).
-- Toda rota declara o papel/permissão mínima; testes garantem que papéis menores são barrados.
+- Route Handlers admin exigem `SUPER_ADMIN` via `requireSuperAdmin()`.
+- Credores acessam apenas dados do próprio tenant (RLS + perfil).
 
-## 6.5 Criptografia
+## 6.5 Chaves e segredos
+
+| Chave | Uso | Onde |
+|-------|-----|------|
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Cliente browser + queries com RLS | Browser, server |
+| `SUPABASE_SERVICE_ROLE_KEY` | Bypass RLS — **somente operações admin validadas** | Servidor apenas |
+| Segredos de integração (futuro) | APIs das fontes | Vercel env / Supabase Vault |
+
+Regras:
+
+- **Nunca** expor `SUPABASE_SERVICE_ROLE_KEY` no browser ou em variáveis `NEXT_PUBLIC_*`.
+- **Nunca** commitar segredos — scan na CI (gitleaks).
+- Rotacionar service role key se houver suspeita de vazamento.
+
+## 6.6 Criptografia
 
 | Onde | Como |
 |------|------|
-| **Em trânsito** | TLS 1.2+ obrigatório (HSTS). mTLS no canal do agente on-premise. |
-| **Em repouso** | Criptografia do RDS, S3, snapshots e filas (chaves no **AWS KMS**). |
-| **Campos sensíveis** | CPF/CNPJ do devedor criptografado em coluna + `hash` para busca por igualdade. |
-| **Segredos** | **AWS Secrets Manager** (tokens das fontes, credenciais). Rotação automática. |
+| **Em trânsito** | TLS 1.2+ (Vercel + Supabase) |
+| **Em repouso** | Criptografia gerenciada pelo Supabase (PostgreSQL) |
+| **Campos sensíveis** | CPF/CNPJ criptografado em coluna + hash para busca (futuro) |
+| **Senhas** | Gerenciadas pelo Supabase Auth (bcrypt) — não armazenamos localmente |
 
-> **Nada de segredo no repositório.** Há varredura de segredos na CI (ver doc 07) e no pre-commit.
-
-## 6.6 OWASP Top 10 — como tratamos cada item
+## 6.7 OWASP Top 10 — mitigações
 
 | Risco OWASP | Mitigação no projeto |
 |-------------|----------------------|
-| **A01 Broken Access Control** | RBAC + RLS + escopo de tenant pelo token; testes de autorização |
-| **A02 Cryptographic Failures** | TLS, KMS, criptografia de campos sensíveis, sem dados sensíveis em log |
-| **A03 Injection** | ORM com queries parametrizadas (Prisma); validação de entrada; sem SQL dinâmico |
-| **A04 Insecure Design** | Threat modeling na Fase 0; padrões seguros por default; revisão de arquitetura |
-| **A05 Security Misconfiguration** | IaC revisado, headers seguros, sem default credentials, hardening de imagens |
-| **A06 Vulnerable Components** | Scan de dependências (SCA) na CI; atualização contínua; SBOM |
-| **A07 Auth Failures** | OIDC, MFA, tokens curtos, lockout, rotação de refresh |
-| **A08 Software & Data Integrity** | Assinatura de webhooks (HMAC), pipelines confiáveis, imagens versionadas |
-| **A09 Logging & Monitoring Failures** | Logs estruturados, auditoria, alertas (doc 08) |
-| **A10 SSRF** | Allow-list de destinos das integrações; egress controlado; sem URL vinda do usuário |
+| **A01 Broken Access Control** | RBAC + RLS + `requireSuperAdmin` |
+| **A02 Cryptographic Failures** | TLS, Supabase encryption at rest, sem dados sensíveis em log |
+| **A03 Injection** | Queries parametrizadas (Supabase client); validação de entrada |
+| **A04 Insecure Design** | Threat modeling; RLS by default |
+| **A05 Security Misconfiguration** | Env vars na Vercel; headers CSP no Next.js |
+| **A06 Vulnerable Components** | SCA na CI; dependabot |
+| **A07 Auth Failures** | Supabase Auth; sessão SSR; MFA recomendado |
+| **A08 Software & Data Integrity** | Assinatura de webhooks (futuro); CI confiável |
+| **A09 Logging & Monitoring Failures** | Logs Vercel + Supabase; auditoria (futuro) |
+| **A10 SSRF** | Allow-list de destinos das integrações |
 
-## 6.7 Proteções de borda (web)
+## 6.8 Proteções de borda (web)
 
-- **CloudFront + AWS WAF**: regras gerenciadas (OWASP), bloqueio de IP/geo se necessário, regras
-  contra bots.
-- **Rate limiting** por IP/usuário/rota (especialmente login e busca).
-- **AWS Shield** para DDoS.
-- **Headers HTTP de segurança**: `Content-Security-Policy`, `Strict-Transport-Security`,
-  `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`.
-- **CORS** restrito aos domínios do portal.
-- **Validação de entrada** estrita em toda borda; **output encoding** para evitar XSS.
+- **Vercel:** HTTPS automático, proteção DDoS básica, rate limiting configurável.
+- **Next.js:** Content-Security-Policy em `next.config.mjs`.
+- **Headers:** HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`.
+- **CORS:** Route Handlers same-origin (`/api`) — sem CORS cross-origin desnecessário.
+- **Validação de entrada** estrita; output encoding contra XSS.
 
-## 6.8 Auditoria (trilha imutável)
+## 6.9 Service role — uso seguro
 
-Toda ação sensível gera registro **append-only** em `audit_log`:
-- Quem (usuário + tenant), o quê (ação), quando, de onde (IP/origem), antes/depois.
-- Foco especial em: login/logout, falhas de auth, **transferir/pausar**, revelar documento,
-  exportar relatório, mudanças de permissão.
-- Logs de auditoria são separados, protegidos contra alteração e retidos conforme jurídico (≥ 5 anos).
+A chave **service role** bypassa RLS. Regras:
 
-## 6.9 LGPD (Lei 13.709/2018)
+1. Usar **apenas** em Route Handlers server-side (`app/api/admin/*`).
+2. **Sempre** validar sessão e papel antes de qualquer operação.
+3. **Nunca** importar cliente admin em componentes client-side.
+4. Preferir cliente **anon** + RLS para leituras de credores quando possível.
 
-O portal trata **dados pessoais** (CPF/CNPJ, nome, dívida) e **dados financeiros**. Obrigações:
+## 6.10 Auditoria (trilha imutável — futuro)
+
+Toda ação sensível deve gerar registro em `audit_log`:
+
+- Quem (usuário + tenant), o quê, quando, IP, antes/depois.
+- Foco: login/logout, transferir/pausar, revelar documento, mudanças de permissão.
+- Retenção conforme jurídico (≥ 5 anos).
+
+## 6.11 LGPD (Lei 13.709/2018)
 
 ### Papéis LGPD
+
 - **Controlador:** o credor (e/ou Grupo ABE, conforme contrato).
 - **Operador:** a plataforma (MK Solutions), que trata dados em nome do controlador.
-- Definir contrato de tratamento (DPA) entre as partes.
-
-### Princípios aplicados
-| Princípio | Como cumprimos |
-|-----------|----------------|
-| **Finalidade** | Dados só usados para gestão de cobrança contratada |
-| **Minimização** | Replicamos apenas o necessário para exibir; nada além |
-| **Base legal** | Execução de contrato / legítimo interesse (cobrança) — confirmar com jurídico |
-| **Segurança** | Criptografia, RLS, auditoria, controle de acesso |
-| **Transparência** | Política de privacidade; registro de tratamento |
-| **Direitos do titular** | Processo para acesso/correção/eliminação e relatório de dados |
 
 ### Medidas práticas
-- **Mascaramento** de CPF/CNPJ na UI por padrão (`123.***.***-00`); revelar só com permissão + auditoria.
-- **Anonimização/eliminação** no offboarding do credor (processo documentado — doc 03).
-- **Registro das operações de tratamento** (RoPA).
-- **Plano de resposta a incidentes** com notificação à ANPD e aos titulares quando aplicável.
-- **DPO/Encarregado** definido (pessoa/contato responsável).
-- Acesso de funcionários por **menor privilégio** e auditado.
 
-## 6.10 Segurança no ciclo de desenvolvimento (DevSecOps)
+- **Mascaramento** de CPF/CNPJ na UI por padrão.
+- **Minimização:** replicar apenas o necessário para exibir.
+- **Anonimização/eliminação** no offboarding do credor.
+- **Plano de resposta a incidentes** com notificação à ANPD quando aplicável.
+
+## 6.12 DevSecOps
 
 | Etapa | Controle |
 |-------|----------|
-| Pre-commit | Lint, format, **scan de segredos** (ex.: gitleaks) |
-| Pull Request | Code review obrigatório, checks verdes |
-| CI | **SAST** (análise estática), **SCA** (dependências), testes, build |
-| Pré-deploy | **DAST** (varredura dinâmica) em staging |
-| Infra | **IaC scanning** (tfsec/checkov), imagens escaneadas |
-| Periódico | **Pentest** antes do go-live e a cada release maior; revisão de acessos |
-| Runtime | WAF, alertas de anomalia, monitoramento (doc 08) |
+| Pre-commit | Lint, format, scan de segredos |
+| Pull Request | Code review, checks verdes |
+| CI | SAST, SCA, testes, build |
+| Runtime | Logs Vercel + Supabase Dashboard |
 
-## 6.11 Gestão de acessos internos (MK Solutions)
-
-- Acesso à AWS via **SSO + MFA**, papéis IAM de menor privilégio, sem chaves de longa duração.
-- Acesso a produção **just-in-time** e auditado; ninguém usa conta root no dia a dia.
-- Bastion/SSM para acesso a recursos privados; nada de banco exposto à internet.
-
-## 6.12 Checklist mínimo antes do go-live
+## 6.13 Checklist mínimo antes do go-live
 
 - [ ] RLS ativo e testado em todas as tabelas com `tenant_id`.
-- [ ] MFA obrigatório para admins.
-- [ ] WAF + rate limit + headers de segurança ativos.
-- [ ] Criptografia em repouso (RDS/S3/filas) + KMS.
-- [ ] CPF/CNPJ criptografado e mascarado na UI.
-- [ ] Auditoria cobrindo todas as ações sensíveis.
-- [ ] Scan de segredos, SAST, SCA e DAST passando na CI.
-- [ ] Pentest realizado e correções aplicadas.
-- [ ] Plano de resposta a incidentes e backup/restore testados.
-- [ ] Política de privacidade e RoPA publicados; DPO definido.
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` configurada só no servidor (Vercel).
+- [ ] MFA habilitado para admins (Supabase Auth).
+- [ ] Headers de segurança ativos (CSP, HSTS).
+- [ ] CPF/CNPJ mascarado na UI.
+- [ ] Scan de segredos e SCA passando na CI.
+- [ ] Teste: credor A não vê dados do credor B.
+- [ ] Política de privacidade e RoPA publicados.

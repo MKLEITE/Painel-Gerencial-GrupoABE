@@ -1,118 +1,133 @@
 # 07 — Infraestrutura e DevOps
 
-## 7.1 Nuvem: AWS
+## 7.1 Plataforma: Supabase + Vercel
 
-Mantemos a recomendação do documento original (AWS). Tudo provisionado por **Infraestrutura como
-Código (Terraform)** — nada criado manualmente no console em produção.
+A infraestrutura do portal é **gerenciada** (PaaS), sem servidores ou IaC próprios:
 
-## 7.2 Componentes AWS (MVP)
+| Camada | Provedor | Responsabilidade |
+|--------|----------|------------------|
+| **Frontend + API serverless** | [Vercel](https://vercel.com) | Next.js 15 (`apps/web`), Route Handlers, CDN, TLS, deploy automático |
+| **Backend de dados** | [Supabase](https://supabase.com) | PostgreSQL, Auth, RLS, backups, Dashboard |
+| **Repositório + CI** | GitHub | Código, Pull Requests, GitHub Actions |
 
-| Serviço | Uso |
-|---------|-----|
-| **VPC** | Rede isolada; subnets públicas (ALB) e privadas (app, banco, workers) |
-| **CloudFront** | CDN do frontend + borda HTTPS |
-| **AWS WAF + Shield** | Proteção L7 / DDoS |
-| **S3** | Hospedagem estática do frontend, artefatos, exportações de relatório |
-| **ALB** | Balanceador para a API (em subnet privada) |
-| **ECS Fargate** | API e workers em contêineres (sem gerenciar servidores) |
-| **RDS PostgreSQL (Multi-AZ)** | Banco do portal (réplica de leitura consolidada) |
-| **SQS** | Filas de ações/sincronização + **DLQ** |
-| **EventBridge** | Agendamento de jobs e roteamento de eventos |
-| **Secrets Manager** | Segredos e credenciais das integrações |
-| **KMS** | Chaves de criptografia |
-| **Cognito** *(ou Keycloak em ECS)* | Identidade/autenticação |
-| **CloudWatch** | Logs, métricas, alarmes, dashboards |
-| **ECR** | Registro de imagens Docker |
+Projeto Supabase: `https://vkzefmedwxvpqcivparz.supabase.co`
 
-## 7.3 Topologia de rede (segurança)
+## 7.2 Componentes
+
+| Componente | Uso |
+|------------|-----|
+| **Vercel (Next.js)** | UI do portal, Route Handlers em `/api/admin/*`, middleware de sessão |
+| **Supabase Auth** | Login, sessão, tokens — via `@supabase/ssr` |
+| **Supabase PostgreSQL** | Banco multi-tenant com Row-Level Security |
+| **Supabase Dashboard** | SQL Editor, logs, métricas, gestão de chaves API |
+| **GitHub Actions** | CI: lint, typecheck, testes, build, scan de segredos |
+
+## 7.3 Topologia
 
 ```text
-Internet
-   │
-CloudFront + WAF ──► S3 (frontend estático)
-   │
-   └──► ALB (subnet pública, só 443) ──► API (ECS, subnet privada)
-                                              │
-                 ┌────────────────────────────┼───────────────────────────┐
-                 ▼                             ▼                            ▼
-            RDS PostgreSQL              SQS / EventBridge            Secrets Manager
-          (subnet privada,             (privado)                    (privado)
-           sem IP público)
-                 ▲
-                 │ (push seguro, mTLS/VPN)
-        Agente on-premise (ambiente ABE) ──► coleta do SQL Server 2005
+Internet (Credores / Admin MK)
+   │  HTTPS
+   ▼
+┌─────────────────────────────────────┐
+│  Vercel — Next.js 15 (apps/web)      │
+│  ├── Páginas (App Router)            │
+│  ├── Route Handlers /api/admin/*     │
+│  └── Middleware (@supabase/ssr)       │
+└─────────────────────────────────────┘
+   │ Auth (anon key)          │ service role (servidor)
+   ▼                          ▼
+┌─────────────────────────────────────┐
+│  Supabase                            │
+│  ├── Auth (auth.users)               │
+│  ├── PostgreSQL + RLS (public.*)     │
+│  └── Backups / PITR (plano Supabase) │
+└─────────────────────────────────────┘
+   ▲
+   │ push seguro (HTTPS, futuro)
+   Agente on-premise (ambiente ABE) ──► coleta do SQL Server 2005
 ```
 
 Regras:
-- Banco e workers **sem IP público**; só acessíveis dentro da VPC.
-- Acesso administrativo via **SSM Session Manager** (sem SSH aberto).
-- Security Groups de menor privilégio (cada componente só fala com quem precisa).
-- Egress controlado (allow-list de destinos das integrações — mitiga SSRF/exfiltração).
+
+- Chave **anon** no browser; chave **service_role** **somente** no servidor (Route Handlers, seed).
+- Segredos de integração futuras ficam em variáveis de ambiente da Vercel ou Supabase Vault — nunca no repositório.
+- O legado SQL 2005 **nunca** é exposto à internet (ver ADR-0005).
 
 ## 7.4 Ambientes
 
-| Ambiente | Propósito | Dados |
-|----------|-----------|-------|
-| **dev** | desenvolvimento e integração contínua | sintéticos/anonimizados |
-| **staging** | homologação, DAST, testes de carga | anonimizados (nunca produção real) |
-| **prod** | produção | reais, sob LGPD |
+| Ambiente | Propósito | Onde |
+|----------|-----------|------|
+| **local** | desenvolvimento | `pnpm dev` + projeto Supabase (ou branch de dev) |
+| **preview** | review de PR | Vercel Preview + mesmo Supabase ou projeto staging |
+| **production** | produção | Vercel Production + Supabase Production |
 
-- Cada ambiente é uma stack Terraform isolada (idealmente contas AWS separadas).
+- Cada ambiente usa **variáveis de ambiente** distintas (chaves Supabase, URLs).
 - **Nunca** copiar dados reais de produção para dev/staging sem anonimização.
 
-## 7.5 Containerização
+## 7.5 Schema e migrations
 
-- **Docker** para API e workers; imagens mínimas (distroless/alpine), usuário não-root.
-- Imagens escaneadas (ECR scan) e versionadas por SHA do commit.
-- Build reprodutível; sem segredos embutidos na imagem.
+- SQL versionado em `supabase/migrations/` (ex.: `001_initial_schema.sql`).
+- Aplicar migrations pelo **SQL Editor** ou **Supabase CLI** — não há Terraform.
+- Seed de desenvolvimento: `pnpm db:seed` (`supabase/seed.mjs`).
+
+Ver [`supabase/README.md`](../supabase/README.md).
 
 ## 7.6 CI/CD (GitHub Actions)
 
-Como o repositório fica no GitHub, usamos **GitHub Actions**.
+Repositório no GitHub → pipeline em `.github/workflows/ci.yml`.
 
 ### Pipeline de CI (em todo PR)
+
 1. Checkout + setup (Node/pnpm).
 2. Lint + format check.
 3. **Scan de segredos** (gitleaks).
 4. Testes unitários e de integração.
 5. **SAST** (análise estática) + **SCA** (dependências).
-6. Build (API, workers, web) + build de imagens Docker.
-7. **IaC scan** (tfsec/checkov) no Terraform.
+6. Build (`pnpm build --filter @abe/web`).
 
 ### Pipeline de CD
-- **Merge na branch `develop`** → deploy automático em **staging** → DAST + smoke tests.
-- **Tag/Release na `main`** → deploy em **prod** com **aprovação manual** (gate).
-- Estratégia de deploy: **rolling** ou **blue/green** (ECS) para zero downtime.
-- Migrações de banco aplicadas de forma controlada no pipeline (com backup antes).
-- **Rollback** documentado e testado (voltar para a imagem/versão anterior).
+
+- **Merge na `main`** → deploy automático na **Vercel** (Production).
+- **Pull Request** → **Preview deployment** na Vercel (URL temporária).
+- Migrações de banco aplicadas **manualmente ou via script** no Supabase antes/depois do deploy (com backup).
+- **Rollback** na Vercel: redeploy de deployment anterior estável.
 
 ### Branching
-- `main` (produção) ← `develop` (homologação) ← `feature/*`.
+
+- `main` (produção) ← `feature/*` (ou `develop` se adotado).
 - Proteção de branch: PR obrigatório, checks verdes, 1+ aprovação, sem push direto na `main`.
-- **Conventional Commits** + versionamento semântico + changelog automático.
+- **Conventional Commits** + versionamento semântico.
 
 ## 7.7 Configuração e segredos
 
-- Configuração por ambiente via variáveis (12-factor); nada sensível no código.
-- Segredos no **Secrets Manager**, lidos em runtime; rotação automática quando possível.
-- `.env` apenas local e **no `.gitignore`** (ver `CONEXAO-GITHUB.md`).
+| Variável | Onde configurar |
+|----------|-----------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Vercel + `.env` local |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Vercel + `.env` local |
+| `SUPABASE_SERVICE_ROLE_KEY` | Vercel (servidor) + `.env` local — **nunca no browser** |
+| `NEXT_PUBLIC_API_BASE_URL` | Vercel + `.env` local — valor `/api` |
+
+- `.env` apenas local e **no `.gitignore`**.
+- Chaves obtidas em Supabase Dashboard → Project Settings → API.
 
 ## 7.8 Custos (princípios)
 
-- Começar enxuto (Fargate pequeno, RDS `t`-class Multi-AZ) e escalar conforme adesão.
-- Tags de custo por ambiente/tenant para acompanhar.
-- Autoscaling baseado em métricas (CPU/fila) para pagar pelo uso.
+- **Vercel:** plano Hobby/Pro conforme tráfego e equipe; preview deployments incluídos.
+- **Supabase:** plano Free/Pro conforme storage, MAU e backups; escalar quando necessário.
+- Tags e projetos separados por ambiente para acompanhar custo.
+- Workers de integração futuros podem rodar como Vercel Cron, Supabase Edge Functions ou processo dedicado — decidir na Fase 1.
 
-## 7.9 Estrutura de IaC no repositório
+## 7.9 Estrutura no repositório
 
 ```text
-infra/
-  modules/            # módulos reutilizáveis (vpc, ecs, rds, waf, ...)
-  envs/
-    dev/
-    staging/
-    prod/
-  README.md           # como aplicar (plan/apply), pré-requisitos
+supabase/
+  migrations/           # SQL versionado (schema, RLS)
+  README.md             # setup Supabase
+
+apps/web/               # deploy na Vercel (Root Directory)
+  app/api/admin/        # Route Handlers (service role)
+  lib/supabase/         # clientes @supabase/ssr
+  lib/auth.ts           # login, logout, perfil
 ```
 
-> O esqueleto de IaC (ainda sem provisionar recursos pagos) é um entregável da Fase 0 — doc 09.
+> Detalhes de deploy: [`VERCEL-DEPLOY.md`](VERCEL-DEPLOY.md).

@@ -1,29 +1,36 @@
 # ADR-0002 — Monólito modular vs. microserviços
 
-Status: Proposto
-Data: 2026-06-18
+Status: Aceito (atualizado)
+Data: 2026-06-18 · revisão Supabase: 2026-06-23
 
 ## Contexto
+
 Precisamos decidir o estilo de decomposição do backend. O time é enxuto no início e o produto ainda
 está validando mercado, mas há integrações que têm ciclos de falha independentes (4 fontes externas).
 
 ## Decisão
-Adotar um **monólito modular** para a API principal (módulos bem separados: auth, carteira,
-devedores, financeiro, admin, auditoria) **+ workers de integração separados** (um por fonte),
-comunicando-se por filas (SQS).
+
+Adotar **Next.js Route Handlers** para regras administrativas e **workers de integração separados**
+(fase futura, `apps/workers`), comunicando-se por filas ou jobs agendados (Supabase Edge Functions,
+cron Vercel ou fila gerenciada — a definir na Fase 1).
+
+A API principal de negócio do portal **não** é um monólito NestJS separado: vive no próprio app web +
+Supabase (Postgres + RLS + Auth).
 
 ## Consequências
+
 **Positivas**
-- Velocidade de desenvolvimento e deploy simples no início.
-- Módulos bem definidos permitem **extrair microserviços depois** sem reescrever tudo.
-- Workers separados dão **isolamento de falha** das integrações (bulkhead) sem complexidade de microserviços completos.
+
+- Velocidade de desenvolvimento; deploy único na Vercel para o portal.
+- Workers separados dão **isolamento de falha** das integrações (bulkhead).
+- Supabase concentra dados + auth sem operar servidor de API dedicado.
 
 **Negativas**
-- Um deploy maior para a API (mitigado por CI/CD e testes).
-- Disciplina necessária para não acoplar módulos indevidamente (reforçado em code review).
+
+- Route Handlers com service role exigem disciplina de autorização (validar SUPER_ADMIN antes de cada mutação).
+- Workers ainda precisam ser implementados na Fase 1.
 
 ## Alternativas consideradas
-- **Microserviços desde o início:** flexibilidade e escala independentes, mas custo operacional alto
-  (observabilidade distribuída, orquestração) — prematuro para a fase atual.
-- **Monólito tradicional (tudo junto, inclusive integrações no mesmo processo):** simples, porém uma
-  fonte lenta/instável afetaria a API inteira. Rejeitado.
+
+- **Microserviços desde o início:** prematuro para a fase atual.
+- **Backend NestJS dedicado:** rejeitado em favor de Supabase + Route Handlers (ADR-0001).

@@ -1,23 +1,19 @@
 /**
  * Configuração do Next.js com headers de segurança aplicados globalmente.
- * Ver docs/05-frontend.md (seção Segurança no frontend) e docs/06-seguranca-e-lgpd.md.
+ * Ver docs/05-frontend.md e docs/06-seguranca-e-lgpd.md.
  */
 
-/** Backend NestJS — usado pelo rewrite para manter cookies same-origin no browser. */
-const apiInternalUrl = process.env.API_INTERNAL_URL ?? 'http://localhost:3333';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const isDev = process.env.NODE_ENV !== 'production';
-/** Docker força standalone; Vercel usa serverless nativo. */
 const useStandalone = !process.env.VERCEL && process.env.DOCKER_BUILD === '1';
 
-/**
- * CSP em dev precisa permitir scripts inline/eval e WebSocket (HMR do Next.js).
- * Em produção mantemos política mais restritiva.
- */
+const connectSrc = ["'self'", supabaseUrl].filter(Boolean).join(' ');
+
 const contentSecurityPolicy = isDev
   ? [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "connect-src 'self' ws: wss:",
+      `connect-src ${connectSrc} ws: wss:`,
       "style-src 'self' 'unsafe-inline'",
       "base-uri 'self'",
       "frame-ancestors 'none'",
@@ -28,11 +24,9 @@ const contentSecurityPolicy = isDev
     ].join('; ')
   : [
       "default-src 'self'",
-      // Next.js App Router injeta scripts inline para hidratação/RSC — sem isso a página fica em branco.
       "script-src 'self' 'unsafe-inline'",
-      // Tailwind/React aplicam estilos inline (style="") e next/font injeta <style>.
       "style-src 'self' 'unsafe-inline'",
-      "connect-src 'self'",
+      `connect-src ${connectSrc}`,
       "base-uri 'self'",
       "frame-ancestors 'none'",
       "img-src 'self' data:",
@@ -56,16 +50,7 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // standalone é só para Docker; na Vercel (VERCEL=1) quebra serverless functions.
   ...(useStandalone ? { output: 'standalone' } : {}),
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiInternalUrl}/api/:path*`,
-      },
-    ];
-  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

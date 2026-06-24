@@ -4,7 +4,7 @@ Documento de referência para evitar erros de cadastro, permissão e isolamento 
 
 ## Visão em uma frase
 
-**Cada credor é um tenant isolado.** Usuários internos da ABE ficam em um tenant da plataforma (sem credor). Login e permissões dependem do **papel** e do **tenant** do usuário.
+**Cada credor é um tenant isolado.** Usuários internos da ABE ficam em um tenant da plataforma (sem credor). Login e permissões dependem do **papel** e do **tenant** do usuário. Credenciais ficam no **Supabase Auth** (`auth.users`); perfil em `public.usuarios` — **sem `senha_hash`**.
 
 ## Diagrama
 
@@ -13,6 +13,7 @@ Documento de referência para evitar erros de cadastro, permissão e isolamento 
 │  TENANT PLATAFORMA (sem Credor)                             │
 │  Ex.: "Plataforma ABE — Administração"                      │
 │  Usuários: SUPER_ADMIN, OPERADOR (futuro)                   │
+│  Auth: auth.users ←→ public.usuarios (id igual)             │
 │  Acesso: /admin                                             │
 └─────────────────────────────────────────────────────────────┘
 
@@ -21,6 +22,7 @@ Documento de referência para evitar erros de cadastro, permissão e isolamento 
 │  Ex.: "Grupo Coca-Cola SP"                                  │
 │  Credor: razão social, CNPJ, endereço, paginasAcesso…       │
 │  Usuários: ADMIN_CREDOR (responsável), OPERADOR, VIEWER…    │
+│  Auth: auth.users ←→ public.usuarios                        │
 │  Acesso: /dashboard (e páginas liberadas em paginasAcesso)  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -29,32 +31,31 @@ Documento de referência para evitar erros de cadastro, permissão e isolamento 
 
 | # | Regra | Por quê |
 |---|--------|---------|
-| 1 | **Um credor = um tenant** (relação 1:1) | Isolamento multi-tenant; queries sempre filtram por `tenantId`. |
-| 2 | **Cadastro de credor cria tenant + credor + responsável** | Garante que todo credor tenha login e dados completos desde o início. |
-| 3 | **Responsável = usuário `ADMIN_CREDOR`** (primeiro do tenant) | É o login principal do dashboard daquele credor. |
-| 4 | **`/admin/usuarios` só lista a equipe ABE** | `listPlatformUsers()` filtra tenants **sem** credor. Logins de credor **não** aparecem aqui. |
-| 5 | **E-mail de login é único na plataforma inteira** | O login (`findByEmail`) não pergunta “qual tenant”; duplicar e-mail quebra autenticação. Hoje validado na API ao criar credor/responsável e admin; **recomendado:** índice único global em `usuarios.email` (migration futura). |
-| 6 | **E-mail comercial ≠ e-mail de login** | Comercial fica no `Credor`; login fica no `Usuario` responsável. Podem ser iguais, mas são campos distintos. |
-| 7 | **SUPER_ADMIN só no tenant plataforma** | Quem acessa `/admin` deve estar no tenant sem credor e ter papel `SUPER_ADMIN`. |
-| 8 | **Alterar usuário de credor só via cadastro do credor** | `UsersService.update` bloqueia usuários cujo tenant tem credor — evita editar responsável por duas telas. |
-| 9 | **`paginasAcesso` controla o menu do dashboard** | Credor só vê módulos liberados (hoje: `dashboard`). |
-| 10 | **Nunca commitar `.env` ou senhas de produção** | Segredos ficam fora do Git (Vercel/RDS secrets). |
+| 1 | **Um credor = um tenant** (relação 1:1) | Isolamento multi-tenant; RLS filtra por `tenant_id`. |
+| 2 | **Cadastro de credor cria tenant + credor + responsável** | Garante login e dados completos desde o início. |
+| 3 | **Responsável = usuário `ADMIN_CREDOR`** (primeiro do tenant) | Login principal do dashboard daquele credor. |
+| 4 | **`/admin/usuarios` só lista a equipe ABE** | Tenants **sem** credor. Logins de credor **não** aparecem aqui. |
+| 5 | **E-mail de login é único na plataforma** | Índice `usuarios_email_key` em `lower(email)`. |
+| 6 | **E-mail comercial ≠ e-mail de login** | Comercial em `credores.email_comercial`; login em `usuarios.email`. |
+| 7 | **SUPER_ADMIN só no tenant plataforma** | Quem acessa `/admin` deve ter papel `SUPER_ADMIN`. |
+| 8 | **Senha só no Supabase Auth** | `public.usuarios` não armazena hash de senha. |
+| 9 | **`paginasAcesso` controla o menu do dashboard** | Credor só vê módulos liberados. |
+| 10 | **Nunca commitar `.env` ou chaves Supabase** | Segredos na Vercel / `.env` local (gitignored). |
 
 ## Onde cada coisa é gerenciada
 
 | O quê | Onde (UI) | API |
 |-------|-----------|-----|
-| Dados da empresa credora | `/admin/credores` | `POST/PATCH /admin/credores` |
-| Login do credor (responsável) | Seção “Responsável” no formulário do credor | `POST /admin/credores`, `PATCH .../responsavel` |
-| Equipe interna ABE | `/admin/usuarios` | `GET/POST/PATCH /admin/usuarios` |
-| Perfil no dashboard | Sidebar (foto/iniciais) | `GET /auth/me` (`fotoUrl`) |
+| Dados da empresa credora | `/admin/credores` | `POST/PATCH /api/admin/credores` |
+| Login do credor (responsável) | Seção "Responsável" no formulário | `POST /api/admin/credores`, `PATCH .../responsavel` |
+| Equipe interna ABE | `/admin/usuarios` | `GET/POST/PATCH /api/admin/usuarios` |
+| Perfil no dashboard | Sidebar | `lib/auth.ts` → perfil em `usuarios` |
 
 ## Papéis (`PapelUsuario`)
 
 | Papel | Tenant típico | Rotas |
 |-------|---------------|-------|
 | `SUPER_ADMIN` | Plataforma | `/admin/*` |
-| `OPERADOR` | Plataforma (futuro) | Operações limitadas no admin |
 | `ADMIN_CREDOR` | Credor | `/dashboard` + páginas do credor |
 | `OPERADOR` | Credor (futuro) | Dashboard com permissões reduzidas |
 | `VIEWER` | Credor (futuro) | Somente leitura |
@@ -63,28 +64,27 @@ Documento de referência para evitar erros de cadastro, permissão e isolamento 
 
 1. Super Admin preenche **Dados da empresa**, **Endereço**, **Controle de acesso**.
 2. Preenche **Responsável** (nome, e-mail de login, senha, foto opcional).
-3. API em **transação**: cria `Tenant` → `Credor` → `Usuario` (`ADMIN_CREDOR`).
+3. Route Handler em **transação** (service role):
+   - Cria usuário em `auth.users` (Supabase Auth Admin API).
+   - Cria `tenants` → `credores` → `usuarios` (`ADMIN_CREDOR`).
 4. Credenciais exibidas uma vez (copiar senha).
 
 **Não fazer:** criar usuário em `/admin/usuarios` esperando que vire credor — isso só cria admin da plataforma.
 
-## Erros comuns a evitar (futuro)
+## Erros comuns a evitar
 
 | Erro | Consequência | Prevenção |
 |------|--------------|-----------|
-| Dois credores no mesmo tenant | Impossível no schema (`Credor.tenantId` unique) | — |
-| Mesmo e-mail em credor A e credor B | Login ambíguo / conflito | Validação na API + unique global no DB |
-| Admin plataforma com e-mail igual ao de credor | Um dos logins falha ou sobrescreve expectativa | Checar unicidade antes de qualquer create |
-| Editar responsável só em `/admin/usuarios` | API retorna 403 | Sempre pelo formulário do credor |
-| Múltiplos `ADMIN_CREDOR` sem regra | Confusão sobre “quem é o responsável” | Hoje: primeiro criado; futuro: flag `principal` ou tela “equipe do credor” |
-| Foto grande no banco | Performance / payload JWT grande | Limite 1 MB; futuro: S3 + URL |
+| Usuário em Auth sem linha em `usuarios` | Login falha ("perfil não encontrado") | Sempre criar perfil junto com Auth |
+| Mesmo e-mail em dois tenants | Conflito de login | Índice único global + validação na API |
+| Service role no browser | Bypass total de RLS | Usar só em Route Handlers server-side |
+| Editar responsável só em `/admin/usuarios` | Bloqueio ou inconsistência | Sempre pelo formulário do credor |
 
-## Evolução planejada (não implementado ainda)
+## Evolução planejada
 
-- **Equipe do credor:** vários usuários (`OPERADOR`, `VIEWER`) no mesmo tenant — tela separada “Usuários do credor” no admin ou self-service do `ADMIN_CREDOR`.
-- **E-mail único global:** migration `@@unique([email])` em `Usuario`.
-- **Foto em object storage:** substituir base64 em `fotoUrl` por URL S3/CloudFront.
-- **OPERADOR plataforma:** acesso parcial ao `/admin` sem ser `SUPER_ADMIN`.
+- **Equipe do credor:** vários usuários no mesmo tenant — tela "Usuários do credor".
+- **Foto em storage:** substituir base64 em `foto_url` por Supabase Storage + URL pública assinada.
+- **MFA obrigatório** para admins via Supabase Auth.
 
 ## Seeds de desenvolvimento
 
@@ -93,12 +93,13 @@ Documento de referência para evitar erros de cadastro, permissão e isolamento 
 | Meykson | `meykson@abe.com.br` | SUPER_ADMIN | `/admin/credores` |
 | Admin Dev | `admin@grupoabe.com.br` | ADMIN_CREDOR | `/dashboard` |
 
-Definidos em `apps/api/prisma/seed.ts`. **Trocar senhas em produção.**
+Definidos em `supabase/seed.mjs`. **Trocar senhas em produção.**
 
 ## Checklist antes de release
 
 - [ ] Senhas seed alteradas ou seed desabilitado em produção
-- [ ] `DATABASE_URL` e JWT secrets só em variáveis de ambiente
-- [ ] Teste: credor A não vê dados do credor B
+- [ ] Chaves Supabase só em variáveis de ambiente (Vercel)
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` não exposta ao browser
+- [ ] Teste: credor A não vê dados do credor B (RLS)
 - [ ] Teste: usuário credor não acessa `/admin`
 - [ ] Teste: SUPER_ADMIN não aparece na lista de usuários de credor

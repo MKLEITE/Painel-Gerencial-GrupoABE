@@ -2,14 +2,11 @@
 
 ## 2.1 Estilo arquitetural
 
-Adotamos uma arquitetura **modular em camadas, orientada a integração**, hospedada na AWS:
+Adotamos uma arquitetura **modular em camadas, orientada a integração**, hospedada em **Vercel + Supabase**:
 
 - **Não é** um monolito acoplado ao legado.
-- **Não é** (ainda) microserviços completos — começamos com um **monólito modular** (modular monolith)
-  para o backend, com **workers de integração separados**. Isso dá velocidade no início e permite
-  extrair microserviços depois, se necessário.
-- A comunicação com as fontes é **assíncrona e desacoplada** (filas/eventos), para que falhas em uma
-  fonte não derrubem o portal.
+- **Não é** microserviços completos — o backend de aplicação vive no **Next.js** (Route Handlers + Supabase), com **workers de integração separados** (futuro).
+- A comunicação com as fontes será **assíncrona e desacoplada**, para que falhas em uma fonte não derrubem o portal.
 
 > Decisão registrada em [ADR-0002](adr/0002-monolito-modular-vs-microservicos.md).
 
@@ -20,101 +17,103 @@ Adotamos uma arquitetura **modular em camadas, orientada a integração**, hospe
                                             │  HTTPS
                                             ▼
                           ┌─────────────────────────────────┐
-                          │   CloudFront (CDN) + AWS WAF     │  ◄── proteção L7, rate-limit, TLS
+                          │   Vercel — CDN + TLS + WAF       │  ◄── edge, rate-limit, HTTPS
                           └─────────────────────────────────┘
                                             │
                                             ▼
                           ┌─────────────────────────────────┐
-                          │  Frontend (Next.js)  — estático  │
-                          │  servido via CloudFront/S3       │
+                          │  Next.js 15 (apps/web)           │
+                          │  ┌──────────┬──────────────────┐ │
+                          │  │ Páginas  │ Route Handlers   │ │
+                          │  │ App Router│ /api/admin/*    │ │
+                          │  └──────────┴──────────────────┘ │
+                          │  Auth: @supabase/ssr (lib/auth)  │
                           └─────────────────────────────────┘
-                                            │ chamadas API (HTTPS, JWT)
+                                            │ Supabase client (anon / service role)
                                             ▼
                           ┌─────────────────────────────────┐
-                          │   ALB (Load Balancer)            │
+                          │  Supabase                        │
+                          │  ┌──────────┬──────────────────┐ │
+                          │  │ Auth     │ PostgreSQL + RLS │ │
+                          │  │(auth.users)│ (public.*)     │ │
+                          │  └──────────┴──────────────────┘ │
+                          └─────────────────────────────────┘
+                                            ▲
+                                            │ carga (ETL, futuro)
+                          ┌─────────────────────────────────┐
+                          │  Workers de Integração (futuro)  │
+                          │  ┌───────────┬───────────┬─────┐ │
+                          │  │ Avantpay  │ ABEWeb    │ ... │ │
+                          │  └───────────┴───────────┴─────┘ │
+                          └─────────────────────────────────┘
+                                            │ push seguro
+                                            ▼
+                          ┌─────────────────────────────────┐
+                          │  Agente on-premise (SQL 2005)    │
                           └─────────────────────────────────┘
                                             │
                                             ▼
-        ┌──────────────────────────────────────────────────────────────────┐
-        │  API / Backend (NestJS) — ECS Fargate (privado)                    │
-        │  ┌──────────┬───────────┬───────────┬───────────┬──────────────┐   │
-        │  │  Auth    │ Carteira  │ Devedores │ Financeiro│  Admin/Ações │   │
-        │  └──────────┴───────────┴───────────┴───────────┴──────────────┘   │
-        └──────────────────────────────────────────────────────────────────┘
-            │ leitura/escrita                         ▲ eventos/comandos
-            ▼                                         │
-   ┌──────────────────┐                  ┌────────────────────────────┐
-   │ PostgreSQL (RDS) │                  │  Filas: SQS + EventBridge   │
-   │ Multi-AZ, RLS    │ ◄────────────────│  (jobs e ações assíncronas) │
-   │ réplica leitura  │   sincronização  └────────────────────────────┘
-   └──────────────────┘                                ▲
-            ▲                                           │
-            │ carga (ETL)                               │ comandos (transferir/pausar)
-   ┌──────────────────────────────────────────────────────────────────┐
-   │  Workers de Integração (ECS Fargate / agendados)                   │
-   │  ┌───────────┬───────────┬───────────┬─────────────────────────┐  │
-   │  │ Avantpay  │ ABEWeb    │ Acordo Seg│  Agente SQL 2005 (on-prem)│ │
-   │  │ (API/file)│ (API)     │ (webhook) │  push → réplica           │ │
-   │  └───────────┴───────────┴───────────┴─────────────────────────┘  │
-   └──────────────────────────────────────────────────────────────────┘
-            │ pull/push seguro
-            ▼
-   ┌──────────────────────────────────────────────────────────────────┐
-   │  Sistemas de origem: Avantpay · ABEWeb · Acordo Seguro · SQL 2005  │
-   └──────────────────────────────────────────────────────────────────┘
+                          ┌─────────────────────────────────┐
+                          │  Sistemas de origem              │
+                          │  Avantpay · ABEWeb · Acordo Seg  │
+                          │  · SQL Server 2005 (Delphi)      │
+                          └─────────────────────────────────┘
 ```
 
 ## 2.3 Componentes e responsabilidades
 
-| Componente | Responsabilidade | Tecnologia (recomendada) |
-|------------|------------------|--------------------------|
-| **CDN + WAF** | TLS, cache estático, mitigação de DDoS/OWASP, rate limit | CloudFront + AWS WAF + Shield |
-| **Frontend** | UI do portal (dashboard, busca, financeiro, admin) | Next.js + TypeScript |
-| **API Gateway interno (ALB)** | Roteamento, health check, TLS interno | AWS ALB |
-| **Backend (API)** | Regras de negócio, autenticação/autorização, contratos | NestJS (Node + TS) |
-| **Banco do portal** | Réplica de leitura consolidada, multi-tenant (RLS) | PostgreSQL (RDS Multi-AZ) |
-| **Filas/eventos** | Desacoplar ações e sincronizações; retentativas; DLQ | SQS + EventBridge |
-| **Workers de integração** | Conectar nas fontes, normalizar para o modelo canônico | NestJS workers / Lambda |
-| **Agente on-premise** | Extrair do SQL 2005 sem expor o legado à internet | serviço .NET/Node no ambiente ABE |
-| **Identidade** | Login, MFA, tokens, federação | Amazon Cognito *ou* Keycloak (ver ADR-0003) |
-| **Segredos** | Senhas, chaves, tokens das integrações | AWS Secrets Manager |
-| **Observabilidade** | Logs, métricas, tracing, alertas | CloudWatch + OpenTelemetry |
+| Componente | Responsabilidade | Tecnologia |
+|------------|------------------|------------|
+| **Edge (Vercel)** | TLS, CDN, deploy serverless, preview por PR | Vercel |
+| **Frontend** | UI do portal (dashboard, busca, financeiro, admin) | Next.js 15 + TypeScript |
+| **Route Handlers** | Operações admin (credores, usuários), validação SUPER_ADMIN | Next.js App Router (`app/api/admin/*`) |
+| **Autenticação** | Login, sessão, tokens | Supabase Auth + `@supabase/ssr` |
+| **Banco do portal** | Réplica consolidada, multi-tenant (RLS) | Supabase PostgreSQL |
+| **Workers de integração** | Conectar nas fontes, normalizar para o modelo canônico | Futuro (`apps/workers`) |
+| **Agente on-premise** | Extrair do SQL 2005 sem expor o legado à internet | Serviço no ambiente ABE |
+| **Observabilidade** | Logs, métricas, alertas | Vercel Analytics/Logs + Supabase Dashboard |
 
 ## 2.4 Fluxos principais
 
-### A) Sincronização (entrada de dados)
-1. Cada fonte tem seu mecanismo: **webhook** (Acordo Seguro), **polling de API** (Avantpay/ABEWeb),
-   **push do agente on-premise** (SQL 2005).
-2. O worker recebe/coleta o dado bruto, **normaliza para o modelo canônico** (ver doc 03).
-3. Faz **upsert** idempotente na réplica PostgreSQL, registrando origem e carimbo de sincronização.
-4. Atualiza **views materializadas** que alimentam os KPIs.
+### A) Autenticação e sessão
+
+1. Usuário envia e-mail/senha na tela de login.
+2. `apps/web/lib/auth.ts` chama `supabase.auth.signInWithPassword`.
+3. Supabase Auth valida credenciais em `auth.users`.
+4. O app busca perfil em `public.usuarios` (papel, tenant, ativo).
+5. Sessão persistida via cookies gerenciados por `@supabase/ssr` (middleware).
 
 ### B) Consulta (saída para o credor)
-1. Credor autentica (login + MFA quando aplicável) → recebe **JWT com tenant + papel**.
-2. Frontend chama a API; o backend **força o filtro de tenant** (app) e o banco **reforça via RLS**.
-3. Backend lê da réplica (nunca do legado) e devolve dados já consolidados e mascarados conforme o papel.
 
-### C) Ação administrativa (transferir / pausar) — crítica
-1. Admin do credor seleciona títulos e clica em **Transferir** (Avantpay → ABEWeb).
-2. Backend valida permissão + cria um **comando idempotente** (com `idempotency-key`) na fila.
-3. Worker executa: chama API do ABEWeb (criar/atualizar) **e** comanda o Avantpay a **pausar**.
-4. Resultado e cada etapa são gravados em **trilha de auditoria**; falhas vão para **DLQ** e alertam.
-5. A réplica é atualizada e a UI reflete o novo estado.
+1. Credor autenticado → sessão Supabase com JWT.
+2. Queries ao Postgres usam cliente **anon** com RLS — cada tenant só vê seus dados.
+3. Frontend consome dados consolidados (futuro: views materializadas).
 
-> A idempotência aqui é inegociável: **nunca** cobrar em dobro nem perder a baixa. Ver doc 08.
+### C) Operação administrativa (SUPER_ADMIN)
+
+1. Admin acessa `/admin/*`.
+2. Route Handler em `app/api/admin/*` valida sessão + papel `SUPER_ADMIN`.
+3. Operações de escrita usam cliente **service role** (bypass RLS controlado no código).
+4. Trilha de auditoria registrada (futuro).
+
+### D) Sincronização (entrada de dados — futuro)
+
+1. Cada fonte: webhook, polling ou push do agente on-premise.
+2. Worker normaliza para o modelo canônico.
+3. Upsert idempotente no Supabase PostgreSQL.
+4. Views materializadas alimentam KPIs.
 
 ## 2.5 Decisões macro (resumo)
 
 | Decisão | Escolha | ADR |
 |---------|---------|-----|
-| Estilo do backend | Monólito modular + workers | [0002](adr/0002-monolito-modular-vs-microservicos.md) |
-| Linguagem backend | TypeScript / NestJS (alternativa: Java/Spring) | [0001](adr/0001-stack-tecnologico.md) |
-| Frontend | Next.js + TypeScript | [0001](adr/0001-stack-tecnologico.md) |
-| Banco | PostgreSQL (RDS) com RLS | [0004](adr/0004-multi-tenant-isolamento.md) |
-| Acesso ao legado | Agente on-premise (sem acesso direto) | [0005](adr/0005-acesso-legado-sql2005.md) |
-| Identidade | Cognito ou Keycloak | [0003](adr/0003-identidade-autenticacao.md) |
+| Frontend + API serverless | Next.js 15 na Vercel | [0001](adr/0001-stack-tecnologico.md) |
+| Backend de dados | Supabase (PostgreSQL + Auth + RLS) | [0001](adr/0001-stack-tecnologico.md) |
+| Estilo do backend | Route Handlers + Supabase (monólito modular) | [0002](adr/0002-monolito-modular-vs-microservicos.md) |
+| Identidade | Supabase Auth | [0003](adr/0003-identidade-autenticacao.md) |
+| Banco | PostgreSQL com RLS | [0004](adr/0004-multi-tenant-isolamento.md) |
+| Acesso ao legado | Agente on-premise → Supabase | [0005](adr/0005-acesso-legado-sql2005.md) |
 
 ## 2.6 Diagramas como código
 
-Os diagramas devem ser mantidos versionados (Mermaid neste repositório ou C4/PlantUML). Evite imagens
-soltas; prefira texto para revisão por diff. Exemplo de KPI de fonte → canônico está no doc 03.
+Os diagramas devem ser mantidos versionados (Mermaid ou texto ASCII neste repositório). Evite imagens soltas; prefira texto para revisão por diff.

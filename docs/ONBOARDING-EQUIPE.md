@@ -1,23 +1,20 @@
-# Onboarding da equipe (3 pessoas · GitHub Free · Vercel)
+# Onboarding da equipe (3 pessoas · GitHub Free · Vercel · Supabase)
 
 Guia simples para trabalhar no **Painel Gerencial Grupo ABE** sem sobrescrever o trabalho uns dos outros.
 
 ## GitHub Free serve?
 
-**Sim.** Para repositório **privado** com **até 3 colaboradores** no plano Free, o GitHub atende bem:
+**Sim.** Para repositório **privado** com **até 3 colaboradores** no plano Free:
 
 - Repositório privado
 - Pull Requests e code review
-- GitHub Actions (CI) — minutos grátis por mês
+- GitHub Actions (CI)
 - Integração nativa com **Vercel**
-
-Planos pagos só entram em cena com times maiores ou minutos de CI muito altos.
 
 ## Repositório
 
 - **URL:** https://github.com/MKLEITE/Painel-Gerencial-GrupoABE
 - **Branch principal:** `main` (código estável)
-- **Branch de integração (opcional):** `develop` — ver `CONTRIBUTING.md`
 
 ## Setup em 5 passos (novo dev)
 
@@ -28,28 +25,36 @@ corepack enable
 pnpm install
 ```
 
-Copiar variáveis de ambiente (pedir valores ao líder do projeto — **nunca** vão no Git):
+Copiar variáveis de ambiente (pedir chaves ao líder — **nunca** vão no Git):
 
 ```powershell
 copy .env.example .env
-copy apps\api\.env.example apps\api\.env
-copy apps\web\.env.example apps\web\.env.local
+# ou: copy apps\web\.env.example apps\web\.env.local
 ```
 
-Banco e seed:
+Preencher no `.env`:
+
+| Variável | Onde obter |
+|----------|------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Dashboard → Settings → API → anon public |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → service_role |
+| `NEXT_PUBLIC_API_BASE_URL` | `/api` (fixo) |
+
+Schema e seed (primeira vez):
+
+1. Aplicar `supabase/migrations/001_initial_schema.sql` no **SQL Editor** do Supabase.
+2. Rodar seed:
 
 ```powershell
-cd apps\api
-pnpm db:migrate
 pnpm db:seed
-cd ..\..
 pnpm dev
 ```
 
-- Web: http://localhost:3000  
-- API: http://localhost:3333/api  
+- Web: http://localhost:3000
+- Supabase Dashboard: https://supabase.com/dashboard
 
-## Como trabalhar no dia a dia (sem pisar no outro)
+## Como trabalhar no dia a dia
 
 ```text
 1. Escolher uma tarefa (issue ou combinado no chat)
@@ -61,38 +66,51 @@ pnpm dev
 7. Abrir Pull Request no GitHub → pedir review → merge
 ```
 
-**Regra de ouro:** ninguém faz push direto em `main` (proteger branch no GitHub quando tiver 2+ devs).
+**Regra de ouro:** ninguém faz push direto em `main`.
 
 ## Divisão sugerida do monorepo
 
 | Dev | Foco | Pastas |
 |-----|------|--------|
 | A | Admin + credores (web) | `apps/web/app/admin`, `components/admin` |
-| B | API + banco | `apps/api/src`, `apps/api/prisma` |
+| B | Route Handlers + Supabase | `apps/web/app/api/admin`, `lib/server`, `supabase/migrations` |
 | C | Dashboard credor | `apps/web/app/dashboard`, `components/dashboard` |
 
-Cada um em **branch diferente**. Mesmo arquivo = Git avisa conflito; resolvem juntos no PR.
+Cada um em **branch diferente**. Mesmo arquivo = conflito no PR; resolvem juntos.
 
-## Vercel (frontend)
+## Vercel (deploy)
 
 1. Conectar repositório GitHub em [vercel.com](https://vercel.com) → Import Project.
 2. **Root Directory:** `apps/web`
 3. **Framework:** Next.js (detectado automaticamente)
-4. **Install Command:** `cd ../.. && pnpm install`
-5. **Build Command:** `cd ../.. && pnpm build --filter @abe/web`
-6. Variáveis de ambiente: `NEXT_PUBLIC_API_URL` apontando para a API (Railway/Render/RDS — API ainda local ou em outro host).
+4. Variáveis de ambiente (Production + Preview):
 
-Cada PR pode gerar **URL de preview** automática (útil para review visual).
+| Variável | Valor |
+|----------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL do projeto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave anon |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave service role |
+| `NEXT_PUBLIC_API_BASE_URL` | `/api` |
+
+Detalhes: [`VERCEL-DEPLOY.md`](VERCEL-DEPLOY.md)
+
+Cada PR gera **URL de preview** automática.
+
+## Supabase (banco + auth)
+
+- Projeto: `https://vkzefmedwxvpqcivparz.supabase.co`
+- Migrations: `supabase/migrations/` — aplicar no SQL Editor ou CLI.
+- **Não compartilhar** a service role key fora da equipe ou em canais inseguros.
+
+Ver [`supabase/README.md`](../supabase/README.md).
 
 ## CI (GitHub Actions)
 
-A cada push/PR roda lint, typecheck, testes e build — arquivo `.github/workflows/ci.yml`.
+A cada push/PR roda lint, typecheck, testes e build — `.github/workflows/ci.yml`.
 
 Se falhar, corrigir antes do merge.
 
 ## Commits
-
-Use prefixos curtos:
 
 - `feat:` nova funcionalidade
 - `fix:` correção
@@ -104,7 +122,3 @@ Exemplo: `feat: paginação na tabela de credores`
 ## Dúvidas sobre credor vs usuário?
 
 Leia **[10-modelo-tenant-usuarios-credores.md](10-modelo-tenant-usuarios-credores.md)** antes de mexer em cadastro ou permissões.
-
-## Quem vem do Bitbucket?
-
-O fluxo é o mesmo: branch → commit → push → Pull Request. Só muda o site (GitHub em vez de Bitbucket).

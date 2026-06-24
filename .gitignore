@@ -32,7 +32,7 @@ Thumbs.db
 .idea/
 *.swp
 
-# Terraform (estado e variáveis sensíveis)
+# Terraform (legado — não usado; infra = Supabase + Vercel)
 **/.terraform/
 *.tfstate
 *.tfstate.*

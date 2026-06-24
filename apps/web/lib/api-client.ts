@@ -1,9 +1,8 @@
 /**
- * Cliente HTTP base para consumir a API.
+ * Cliente HTTP base para Route Handlers do Next.js (`/api/admin/*`).
  *
- * Boas práticas (ver docs/05-frontend.md):
- * - Em produção, cookies HttpOnly + Secure para o token (não localStorage).
- * - Erros no formato problem+json, correlacionados pelo traceId.
+ * - Sessão Supabase via cookies (middleware renova tokens).
+ * - Erros retornam `{ title, status, errors? }`.
  */
 
 /** Same-origin via rewrite do Next.js — cookies httpOnly funcionam no browser. */

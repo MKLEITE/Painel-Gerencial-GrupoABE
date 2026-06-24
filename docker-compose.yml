@@ -1,11 +1,21 @@
-# Ambiente de desenvolvimento local.
-# Sobe um PostgreSQL e o Adminer (UI web para inspecionar o banco).
-# Uso:
-#   docker compose up -d        # sobe os serviços
-#   docker compose down         # para os serviços (mantém os dados)
-#   docker compose down -v      # para e APAGA os dados
+# Ambiente de desenvolvimento local — PostgreSQL opcional
 #
-# Em produção NÃO usamos este compose: o banco é o AWS RDS (ver docs/07).
+# ATENÇÃO: Este compose NÃO é usado pelo stack principal do projeto.
+# O banco de produção e desenvolvimento é o Supabase PostgreSQL:
+#   https://vkzefmedwxvpqcivparz.supabase.co
+#
+# Use este compose APENAS se quiser um Postgres local isolado para
+# experimentos — ele NÃO substitui o Supabase (sem Auth, sem RLS do projeto).
+#
+# Fluxo recomendado para dev:
+#   1. Configurar .env com chaves Supabase (ver .env.example)
+#   2. Aplicar supabase/migrations/001_initial_schema.sql no Supabase
+#   3. pnpm db:seed && pnpm dev
+#
+# Uso deste compose (opcional):
+#   docker compose up -d
+#   docker compose down
+#   docker compose down -v   # apaga dados locais
 
 services:
   postgres:

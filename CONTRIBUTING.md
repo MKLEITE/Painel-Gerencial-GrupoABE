@@ -4,9 +4,10 @@ Bem-vindo(a)! Este guia ajuda novos desenvolvedores a trabalharem de forma organ
 
 ## Pré-requisitos
 
-- **Node.js** (versão em `.nvmrc`).
-- **pnpm** via Corepack: `corepack enable` (já vem com o Node).
+- **Node.js** (versão em `.nvmrc`) — ≥ 20.
+- **pnpm** via Corepack: `corepack enable`.
 - **Git**.
+- Acesso às chaves do projeto **Supabase** (pedir ao líder).
 
 ## Primeiros passos
 
@@ -18,57 +19,63 @@ pnpm install
 cp .env.example .env
 ```
 
-Rodar tudo em modo dev:
+Preencher `.env` com as chaves Supabase (Dashboard → Settings → API).
+
+Aplicar schema (uma vez) no SQL Editor do Supabase: `supabase/migrations/001_initial_schema.sql`.
 
 ```bash
+pnpm db:seed
 pnpm dev
 ```
 
-Ou um app específico:
-
-```bash
-pnpm --filter @abe/api dev
-pnpm --filter @abe/web dev
-```
+Frontend: http://localhost:3000
 
 ## Estrutura do monorepo
 
 ```text
 apps/
-  api/      # backend (NestJS)
-  web/      # frontend (Next.js)
-  workers/  # workers de integração
+  web/        # Next.js 15 — frontend + Route Handlers (PRINCIPAL)
+  workers/    # workers de integração (futuro)
 packages/
   canonical-model/  # tipos/enums compartilhados
-  config/           # configs compartilhadas (ESLint)
-infra/      # infraestrutura como código (Terraform)
-docs/       # documentação técnica (LEIA ISTO PRIMEIRO)
+  config/           # ESLint compartilhado
+supabase/
+  migrations/       # schema SQL versionado
+  seed.mjs          # seed de desenvolvimento (`pnpm db:seed`)
+docs/               # documentação técnica (LEIA ISTO PRIMEIRO)
 ```
 
 ## Fluxo de trabalho
 
-1. Crie uma branch a partir de `develop`: `feature/minha-mudanca`.
-2. Faça commits no padrão **Conventional Commits** (`feat:`, `fix:`, `docs:`...).
-   - Os hooks de git (husky) validam lint e mensagem de commit automaticamente.
-3. Abra um Pull Request para `develop` e preencha o template.
-4. A CI precisa passar (lint, typecheck, testes, build, scan de segredos).
-5. Precisa de pelo menos 1 aprovação no review.
+1. Crie uma branch a partir de `main`: `feat/minha-mudanca`.
+2. Commits no padrão **Conventional Commits** (`feat:`, `fix:`, `docs:`...).
+   - Hooks (husky) validam lint e mensagem de commit.
+3. Abra Pull Request para `main` e preencha o template.
+4. CI precisa passar (lint, typecheck, testes, build).
+5. Pelo menos 1 aprovação no review.
 
 ## Regras de ouro
 
-- **Nunca** commitar segredos (`.env`, tokens, chaves). Use `.env.example`.
-- **Toda** consulta a dados respeita o isolamento de tenant (ver `docs/06`).
-- **Toda** entrada de API é validada.
-- **Ações sensíveis** sempre auditadas.
-- Antes de decisões arquiteturais, registre um **ADR** em `docs/adr/`.
+- **Nunca** commitar segredos (`.env`, `SUPABASE_SERVICE_ROLE_KEY`). Use `.env.example`.
+- **Nunca** expor service role key no browser ou em variáveis `NEXT_PUBLIC_*`.
+- **Toda** consulta respeita isolamento de tenant (RLS — ver `docs/06`).
+- **Toda** entrada de API é validada nas Route Handlers.
+- Decisões arquiteturais → **ADR** em `docs/adr/`.
 
 ## Scripts úteis
 
 | Comando | O que faz |
 |---------|-----------|
-| `pnpm dev` | Sobe todos os apps em modo desenvolvimento |
-| `pnpm build` | Build de todos os pacotes |
+| `pnpm dev` | Sobe `@abe/web` em desenvolvimento |
+| `pnpm build` | Build de produção |
 | `pnpm lint` | Lint em todo o monorepo |
 | `pnpm typecheck` | Checagem de tipos |
 | `pnpm test` | Testes |
-| `pnpm format` | Formata o código (Prettier) |
+| `pnpm db:seed` | Seed no Supabase |
+| `pnpm format` | Prettier |
+
+## Documentação
+
+- [Guia do Projeto](docs/GUIA-DO-PROJETO.md) — leia primeiro.
+- [Onboarding](docs/ONBOARDING-EQUIPE.md) — setup em equipe.
+- [Supabase](../supabase/README.md) — banco e auth.

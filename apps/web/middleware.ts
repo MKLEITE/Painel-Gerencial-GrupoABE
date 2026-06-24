@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';
 
-/** Repassa o pathname ao layout raiz (tema padrão por rota). */
-export function middleware(request: NextRequest) {
+/** Renova sessão Supabase e repassa pathname ao layout raiz (tema por rota). */
+export async function middleware(request: NextRequest) {
+  const sessionResponse = await updateSession(request);
   const pathname = request.nextUrl.pathname;
   const isLoginRoute = pathname === '/login' || pathname.startsWith('/login/');
 
@@ -16,7 +18,10 @@ export function middleware(request: NextRequest) {
     request: { headers: requestHeaders },
   });
 
-  // Cookie para o layout SSR identificar /login mesmo sem header customizado.
+  sessionResponse.cookies.getAll().forEach((cookie) => {
+    response.cookies.set(cookie.name, cookie.value, cookie);
+  });
+
   if (isLoginRoute) {
     response.cookies.set('login-route', '1', { path: '/', sameSite: 'lax' });
   } else {

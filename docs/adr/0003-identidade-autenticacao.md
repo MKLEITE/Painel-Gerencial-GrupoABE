@@ -1,30 +1,40 @@
 # ADR-0003 — Provedor de identidade e autenticação
 
-Status: Proposto
-Data: 2026-06-18
+Status: **Aceito**
+Data: 2026-06-18 · Atualizado: 2026-06-24
 
 ## Contexto
-O portal é acessado por usuários externos (credores), com múltiplos papéis e MFA obrigatório para
-admins. Precisamos de autenticação robusta (OIDC/OAuth2), gestão de usuários por tenant e MFA, sem
-reinventar segurança de identidade.
+
+O portal é acessado por usuários externos (credores), com múltiplos papéis. Precisamos de autenticação robusta, gestão de usuários por tenant e MFA, sem reinventar segurança de identidade nem armazenar senhas em tabelas próprias.
 
 ## Decisão
-Usar um provedor de identidade gerenciado baseado em **OIDC/OAuth2**. Recomendação inicial:
-**Amazon Cognito** (integra com a stack AWS, gerenciado, suporta MFA e federação). **Keycloak**
-(auto-hospedado) fica como alternativa caso seja necessário maior controle/customização ou evitar
-lock-in.
 
-> Decisão final entre Cognito e Keycloak fica pendente de confirmação (ver doc 09, seção 9.5).
+Usar **Supabase Auth** como provedor de identidade, integrado ao stack Supabase + Next.js:
+
+- Credenciais em `auth.users` (gerenciadas pelo Supabase).
+- Perfil de aplicação em `public.usuarios` (`id` = `auth.users.id`) — **sem coluna `senha_hash`**.
+- Sessão SSR via `@supabase/ssr` (`apps/web/lib/supabase/`).
+- Login/logout em `apps/web/lib/auth.ts`.
+- Operações admin (criar usuário) usam **Supabase Auth Admin API** com service role nas Route Handlers.
+
+Projeto: `https://vkzefmedwxvpqcivparz.supabase.co`
 
 ## Consequências
+
 **Positivas**
-- Não implementamos criptografia de senha/fluxo OIDC do zero (menos risco).
-- MFA, rotação de tokens e federação prontos.
+
+- Auth integrado ao PostgreSQL e RLS.
+- Sem implementação própria de hash de senha, refresh token ou OIDC.
+- MFA disponível via Supabase Auth (habilitar para admins em produção).
+- Cookies httpOnly gerenciados pelo middleware SSR.
 
 **Negativas**
-- Cognito: algum lock-in AWS e limitações de customização de telas/fluxos.
-- Keycloak: exige operar/hospedar e manter atualizado (mais esforço de infra).
+
+- Customização de telas de login limitada ao que o Supabase oferece (usamos UI própria com `signInWithPassword`).
+- Dependência do Supabase Auth para disponibilidade de login.
 
 ## Alternativas consideradas
-- **Auth0:** excelente DX, custo cresce com usuários; lock-in de fornecedor.
-- **Autenticação própria:** maior risco de segurança e manutenção. Rejeitada.
+
+- **Auth0 / Clerk:** excelente DX, custo adicional e mais um provedor — rejeitado.
+- **Autenticação própria (JWT + Argon2):** rejeitada — substituída por Supabase Auth.
+- **Keycloak self-hosted:** mais controle, mais operação — rejeitado para equipe pequena.
