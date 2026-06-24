@@ -10,14 +10,8 @@ export const envSchema = z.object({
   API_GLOBAL_PREFIX: z.string().default('api'),
   WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
   DATABASE_URL: z.string().min(1).optional(),
-  JWT_ACCESS_SECRET: z
-    .string()
-    .min(32)
-    .default('dev-access-secret-trocar-em-producao-32c'),
-  JWT_REFRESH_SECRET: z
-    .string()
-    .min(32)
-    .default('dev-refresh-secret-trocar-em-producao-32c'),
+  JWT_ACCESS_SECRET: z.string().min(32).default('dev-access-secret-trocar-em-producao-32c'),
+  JWT_REFRESH_SECRET: z.string().min(32).default('dev-refresh-secret-trocar-em-producao-32c'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   COOKIE_SECURE: z

@@ -29,9 +29,7 @@ export const viewport: Viewport = {
   ],
 };
 
-export default async function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();
   const headersList = await headers();
   const pathname = headersList.get('x-pathname') ?? '';
@@ -39,11 +37,7 @@ export default async function RootLayout({
 
   const savedTheme = cookieStore.get('theme')?.value;
   const theme =
-    savedTheme === 'dark' || savedTheme === 'light'
-      ? savedTheme
-      : isLoginRoute
-        ? 'dark'
-        : 'light';
+    savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : isLoginRoute ? 'dark' : 'light';
 
   return (
     <html

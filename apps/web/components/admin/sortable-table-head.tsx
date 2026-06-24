@@ -21,7 +21,9 @@ export function SortableTableHead({
   align = 'left',
 }: SortableTableHeadProps) {
   return (
-    <th className={`px-5 py-3.5 font-semibold ${align === 'right' ? 'text-right' : ''} ${className}`}>
+    <th
+      className={`px-5 py-3.5 font-semibold ${align === 'right' ? 'text-right' : ''} ${className}`}
+    >
       <button
         type="button"
         onClick={onSort}

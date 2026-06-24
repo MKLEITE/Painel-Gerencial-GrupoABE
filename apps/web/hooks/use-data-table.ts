@@ -40,10 +40,7 @@ export function useDataTable<T, K extends string>(
     return sortItems(items, (item) => getValue(item, sortKey), sortKind, sortDir);
   }, [items, sortKey, sortDir, sortKind, getValue]);
 
-  const pagination = useMemo(
-    () => paginateItems(sorted, page, pageSize),
-    [sorted, page, pageSize],
-  );
+  const pagination = useMemo(() => paginateItems(sorted, page, pageSize), [sorted, page, pageSize]);
 
   useEffect(() => {
     if (page > pagination.totalPages) {

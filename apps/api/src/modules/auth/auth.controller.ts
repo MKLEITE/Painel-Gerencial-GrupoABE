@@ -15,11 +15,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { UsersService } from '../users/users.service.js';
 import { AuthenticatedUser } from './auth.types.js';
-import {
-  ACCESS_TOKEN_COOKIE,
-  AuthService,
-  REFRESH_TOKEN_COOKIE,
-} from './auth.service.js';
+import { ACCESS_TOKEN_COOKIE, AuthService, REFRESH_TOKEN_COOKIE } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 
 @Controller({ path: 'auth', version: '1' })
@@ -35,7 +31,9 @@ export class AuthController {
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ user: { id: string; email: string; nome: string; papel: string; fotoUrl: string | null } }> {
+  ): Promise<{
+    user: { id: string; email: string; nome: string; papel: string; fotoUrl: string | null };
+  }> {
     const { user, tokens } = await this.authService.login(dto.email, dto.senha);
     this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
     return { user };

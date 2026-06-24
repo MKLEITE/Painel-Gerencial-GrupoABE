@@ -37,10 +37,7 @@ export function SetoresSelect({ value, onChange }: SetoresSelectProps) {
 
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node;
-      if (
-        triggerRef.current?.contains(target) ||
-        panelRef.current?.contains(target)
-      ) {
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) {
         return;
       }
       setAberto(false);
@@ -62,9 +59,7 @@ export function SetoresSelect({ value, onChange }: SetoresSelectProps) {
   }, [aberto, atualizarPosicao]);
 
   function toggle(setor: string) {
-    onChange(
-      value.includes(setor) ? value.filter((s) => s !== setor) : [...value, setor],
-    );
+    onChange(value.includes(setor) ? value.filter((s) => s !== setor) : [...value, setor]);
   }
 
   function remover(setor: string, e: React.MouseEvent) {

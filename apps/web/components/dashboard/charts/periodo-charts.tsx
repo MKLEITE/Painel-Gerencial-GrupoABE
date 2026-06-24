@@ -18,9 +18,7 @@ export function EnviadoRecebidoChart() {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
       <div className="mb-5">
-        <h3 className="font-display text-lg font-semibold text-foreground">
-          Enviado vs recebido
-        </h3>
+        <h3 className="font-display text-lg font-semibold text-foreground">Enviado vs recebido</h3>
         <p className="text-sm text-muted-foreground">Por mês · valores em R$ milhões</p>
       </div>
 

@@ -78,10 +78,7 @@ export function UsuariosTable({ usuarios, onToggleAtivo }: UsuariosTableProps) {
           </thead>
           <tbody>
             {rows.map((u) => (
-              <tr
-                key={u.id}
-                className="border-b border-border/60 last:border-0 hover:bg-muted/30"
-              >
+              <tr key={u.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
                 <td className="px-5 py-4 font-medium text-foreground">{u.nome}</td>
                 <td className="px-5 py-4 text-muted-foreground">{u.email}</td>
                 <td className="px-5 py-4">

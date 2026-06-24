@@ -72,7 +72,11 @@ const METRICAS = [
 
 const SEGURANCA = [
   { icon: Lock, titulo: 'Criptografia ponta a ponta', texto: 'Em trânsito e em repouso.' },
-  { icon: Fingerprint, titulo: 'MFA para administradores', texto: 'Camada extra em ações sensíveis.' },
+  {
+    icon: Fingerprint,
+    titulo: 'MFA para administradores',
+    texto: 'Camada extra em ações sensíveis.',
+  },
   { icon: ShieldCheck, titulo: 'Trilha de auditoria', texto: 'Quem, o quê, quando e de onde.' },
   { icon: Building2, titulo: 'Conformidade LGPD', texto: 'Minimização e mascaramento de dados.' },
 ];
@@ -93,13 +97,12 @@ export default function HomePage() {
           <div className="container py-20 sm:py-28">
             <div className="mx-auto max-w-3xl text-center">
               <span className="inline-flex animate-fade-in items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-sm font-medium text-muted-foreground shadow-soft backdrop-blur">
-                <Sparkles className="h-4 w-4 text-primary" />
-                A régua de cobrança inteira, em um só lugar
+                <Sparkles className="h-4 w-4 text-primary" />A régua de cobrança inteira, em um só
+                lugar
               </span>
 
               <h1 className="mt-6 animate-fade-in-up font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
-                Toda a cobrança do{' '}
-                <span className="text-gradient">Grupo ABE</span>,
+                Toda a cobrança do <span className="text-gradient">Grupo ABE</span>,
                 <br className="hidden sm:block" /> consolidada e segura.
               </h1>
 
@@ -155,7 +158,8 @@ export default function HomePage() {
               Tudo que a operação precisa, em uma experiência só
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Pensado para o dia a dia do credor: menos cliques, mais clareza e decisões mais rápidas.
+              Pensado para o dia a dia do credor: menos cliques, mais clareza e decisões mais
+              rápidas.
             </p>
           </div>
 
@@ -258,7 +262,9 @@ export default function HomePage() {
                     <LineChart className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="font-display font-semibold text-foreground">Painel de auditoria</p>
+                    <p className="font-display font-semibold text-foreground">
+                      Painel de auditoria
+                    </p>
                     <p className="text-sm text-muted-foreground">Rastreabilidade de cada ação</p>
                   </div>
                 </div>

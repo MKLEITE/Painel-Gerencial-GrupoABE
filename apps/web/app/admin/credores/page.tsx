@@ -15,7 +15,11 @@ function buildKpis(credores: Credor[]): KpiItem[] {
   const estados = new Set(credores.map((c) => c.estado).filter(Boolean)).size;
 
   return [
-    { rotulo: 'Total de credores', valor: String(credores.length), detalhe: 'Cadastrados na plataforma' },
+    {
+      rotulo: 'Total de credores',
+      valor: String(credores.length),
+      detalhe: 'Cadastrados na plataforma',
+    },
     { rotulo: 'Ativos', valor: String(ativos), detalhe: 'Com acesso ao painel' },
     { rotulo: 'Com responsável', valor: String(comResponsavel), detalhe: 'Login configurado' },
     { rotulo: 'Estados (UF)', valor: String(estados), detalhe: 'Distribuição geográfica' },
@@ -56,7 +60,10 @@ export default function CredoresPage() {
       <KpiSection hideHeader kpis={buildKpis(credores)} />
 
       {erro && (
-        <p role="alert" className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <p
+          role="alert"
+          className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+        >
           {erro}
         </p>
       )}
@@ -64,7 +71,9 @@ export default function CredoresPage() {
       <section>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-display text-base font-semibold text-foreground">Lista de credores</h2>
+            <h2 className="font-display text-base font-semibold text-foreground">
+              Lista de credores
+            </h2>
             <p className="text-xs text-muted-foreground">
               Razão social, CNPJ, CodCliente e status — clique em Editar para alterar.
             </p>

@@ -32,7 +32,8 @@ export function TablePagination({
           <>Nenhum {itemLabelSingular} cadastrado</>
         ) : (
           <>
-            <span className="tabular-nums">{total.toLocaleString('pt-BR')}</span> {label} cadastrados
+            <span className="tabular-nums">{total.toLocaleString('pt-BR')}</span> {label}{' '}
+            cadastrados
             {totalPages > 1 && (
               <>
                 {' '}

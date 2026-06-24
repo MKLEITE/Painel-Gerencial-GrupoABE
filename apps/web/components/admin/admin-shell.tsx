@@ -3,15 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
-import {
-  Building2,
-  ChevronRight,
-  LogOut,
-  Menu,
-  Shield,
-  Users,
-  X,
-} from 'lucide-react';
+import { Building2, ChevronRight, LogOut, Menu, Shield, Users, X } from 'lucide-react';
 import { Logo } from '@/components/brand/logo';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { UserAvatar } from '@/components/ui/user-avatar';

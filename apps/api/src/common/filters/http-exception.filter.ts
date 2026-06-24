@@ -55,9 +55,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const res = (exception as HttpException).getResponse();
     const rawMessage =
-      typeof res === 'object' && res !== null
-        ? (res as { message?: unknown }).message
-        : res;
+      typeof res === 'object' && res !== null ? (res as { message?: unknown }).message : res;
 
     // class-validator devolve um array de mensagens (uma por regra violada).
     if (Array.isArray(rawMessage) && rawMessage.length > 0) {

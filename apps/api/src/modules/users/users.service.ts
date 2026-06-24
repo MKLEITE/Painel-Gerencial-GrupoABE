@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { hash, verify } from '@node-rs/argon2';
 import { PapelUsuario as PapelDb, Prisma } from '@prisma/client';
 import { PapelUsuario } from '@abe/canonical-model';

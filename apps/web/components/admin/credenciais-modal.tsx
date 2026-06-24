@@ -23,7 +23,9 @@ export function CredenciaisModal({ email, senha, onClose }: CredenciaisModalProp
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-card">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 className="font-display text-lg font-semibold text-foreground">Credor cadastrado</h3>
+            <h3 className="font-display text-lg font-semibold text-foreground">
+              Credor cadastrado
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Repasse as credenciais ao responsável. O envio por e-mail será habilitado futuramente.
             </p>
@@ -40,11 +42,15 @@ export function CredenciaisModal({ email, senha, onClose }: CredenciaisModalProp
 
         <dl className="space-y-3 rounded-xl bg-muted/40 p-4 text-sm">
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Login (e-mail)</dt>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Login (e-mail)
+            </dt>
             <dd className="mt-1 font-medium text-foreground">{email}</dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Senha</dt>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Senha
+            </dt>
             <dd className="mt-1 font-mono font-semibold text-foreground">{senha}</dd>
           </div>
         </dl>

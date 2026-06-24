@@ -23,11 +23,7 @@ export function ThemeToggle({
   useEffect(() => setMounted(true), []);
 
   const isDark = theme === 'dark';
-  const label = !mounted
-    ? 'Alternar tema'
-    : isDark
-      ? 'Ativar modo claro'
-      : 'Ativar modo escuro';
+  const label = !mounted ? 'Alternar tema' : isDark ? 'Ativar modo claro' : 'Ativar modo escuro';
 
   return (
     <button

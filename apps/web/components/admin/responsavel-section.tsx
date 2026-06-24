@@ -100,7 +100,11 @@ export function ResponsavelSection({ mode, credorId, values, onChange }: Respons
             {values.fotoUrl ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={values.fotoUrl} alt="Foto do responsável" className="h-full w-full object-cover" />
+                <img
+                  src={values.fotoUrl}
+                  alt="Foto do responsável"
+                  className="h-full w-full object-cover"
+                />
                 <button
                   type="button"
                   onClick={removerFoto}
@@ -128,7 +132,9 @@ export function ResponsavelSection({ mode, credorId, values, onChange }: Respons
           >
             Selecionar foto de perfil
           </button>
-          <p className="text-center text-[11px] text-muted-foreground">(máx. 1 MB, formato imagem)</p>
+          <p className="text-center text-[11px] text-muted-foreground">
+            (máx. 1 MB, formato imagem)
+          </p>
           {erroFoto && <p className="text-center text-[11px] text-danger">{erroFoto}</p>}
         </div>
 

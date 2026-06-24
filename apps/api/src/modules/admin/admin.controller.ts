@@ -1,19 +1,17 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { PapelUsuario } from '@abe/canonical-model';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { UsersService } from '../users/users.service.js';
 import { CredoresService } from './credores.service.js';
-import { CreateCredorDto, CreateUsuarioDto, UpdateCredorDto, UpdateResponsavelCredorDto, UpdateUsuarioDto } from './dto/admin.dto.js';
+import {
+  CreateCredorDto,
+  CreateUsuarioDto,
+  UpdateCredorDto,
+  UpdateResponsavelCredorDto,
+  UpdateUsuarioDto,
+} from './dto/admin.dto.js';
 
 @Controller({ path: 'admin', version: '1' })
 @UseGuards(JwtAuthGuard, RolesGuard)

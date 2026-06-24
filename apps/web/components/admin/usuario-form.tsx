@@ -1,7 +1,13 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { FormActions, FormField, FormInput, FormSection, FormSelect } from '@/components/admin/form-field';
+import {
+  FormActions,
+  FormField,
+  FormInput,
+  FormSection,
+  FormSelect,
+} from '@/components/admin/form-field';
 import { PLATFORM_PAPEIS } from '@/lib/admin-constants';
 
 export interface UsuarioFormValues {
@@ -74,7 +80,10 @@ export function UsuarioForm({
         footer={<FormActions onCancel={onCancel} submitLabel={submitLabel} salvando={salvando} />}
       >
         {erro && (
-          <p role="alert" className="mb-5 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <p
+            role="alert"
+            className="mb-5 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+          >
             {erro}
           </p>
         )}

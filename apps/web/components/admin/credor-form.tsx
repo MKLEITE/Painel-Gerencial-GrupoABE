@@ -44,7 +44,9 @@ interface CredorFormProps {
   credorId?: string;
   initial?: Partial<CredorFormValues>;
   submitLabel: string;
-  onSubmit: (payload: CreateCredorPayload | Omit<CreateCredorPayload, 'responsavel'>) => Promise<void>;
+  onSubmit: (
+    payload: CreateCredorPayload | Omit<CreateCredorPayload, 'responsavel'>,
+  ) => Promise<void>;
   onUpdateResponsavel?: (data: {
     nome: string;
     email: string;
@@ -190,9 +192,15 @@ export function CredorForm({
 
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-6">
-      <FormSection title="Dados da empresa" description="Informações cadastrais e de contato do credor.">
+      <FormSection
+        title="Dados da empresa"
+        description="Informações cadastrais e de contato do credor."
+      >
         {erro && (
-          <p role="alert" className="mb-5 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <p
+            role="alert"
+            className="mb-5 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+          >
             {erro}
           </p>
         )}
@@ -245,7 +253,12 @@ export function CredorForm({
             />
           </FormField>
 
-          <FormField label="Setor" required className="sm:col-span-2" hint="Abra a lista e marque os setores.">
+          <FormField
+            label="Setor"
+            required
+            className="sm:col-span-2"
+            hint="Abra a lista e marque os setores."
+          >
             <SetoresSelect
               value={form.setores}
               onChange={(setores) => setForm({ ...form, setores })}
@@ -267,11 +280,19 @@ export function CredorForm({
           </FormField>
 
           <FormField label="Cidade" required className="lg:col-span-2">
-            <FormInput value={form.cidade} onChange={(v) => setForm({ ...form, cidade: v })} required />
+            <FormInput
+              value={form.cidade}
+              onChange={(v) => setForm({ ...form, cidade: v })}
+              required
+            />
           </FormField>
 
           <FormField label="Estado" required>
-            <FormSelect value={form.estado} onChange={(v) => setForm({ ...form, estado: v })} required>
+            <FormSelect
+              value={form.estado}
+              onChange={(v) => setForm({ ...form, estado: v })}
+              required
+            >
               <option value="">UF</option>
               {UFS_BR.map((uf) => (
                 <option key={uf} value={uf}>
@@ -282,15 +303,27 @@ export function CredorForm({
           </FormField>
 
           <FormField label="Bairro" required className="sm:col-span-2">
-            <FormInput value={form.bairro} onChange={(v) => setForm({ ...form, bairro: v })} required />
+            <FormInput
+              value={form.bairro}
+              onChange={(v) => setForm({ ...form, bairro: v })}
+              required
+            />
           </FormField>
 
           <FormField label="Endereço" required className="sm:col-span-2">
-            <FormInput value={form.endereco} onChange={(v) => setForm({ ...form, endereco: v })} required />
+            <FormInput
+              value={form.endereco}
+              onChange={(v) => setForm({ ...form, endereco: v })}
+              required
+            />
           </FormField>
 
           <FormField label="Número" required>
-            <FormInput value={form.numero} onChange={(v) => setForm({ ...form, numero: v })} required />
+            <FormInput
+              value={form.numero}
+              onChange={(v) => setForm({ ...form, numero: v })}
+              required
+            />
           </FormField>
 
           <FormField label="Complemento" className="sm:col-span-2 lg:col-span-3">
@@ -303,7 +336,10 @@ export function CredorForm({
         </div>
       </FormSection>
 
-      <FormSection title="Controle de acesso" description="Defina quais páginas o credor poderá visualizar no painel.">
+      <FormSection
+        title="Controle de acesso"
+        description="Defina quais páginas o credor poderá visualizar no painel."
+      >
         <div className="flex flex-wrap gap-3">
           {PAGINAS_ACESSO.map((pagina) => {
             const ativo = form.paginasAcesso.includes(pagina.id);

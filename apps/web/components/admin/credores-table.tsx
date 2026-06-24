@@ -8,7 +8,13 @@ import { useDataTable } from '@/hooks/use-data-table';
 import type { Credor } from '@/lib/admin-api';
 import { formatCnpj } from '@/lib/admin-labels';
 
-type CredorSortKey = 'razaoSocial' | 'cnpj' | 'emailComercial' | 'responsavel' | 'cidade' | 'status';
+type CredorSortKey =
+  | 'razaoSocial'
+  | 'cnpj'
+  | 'emailComercial'
+  | 'responsavel'
+  | 'cidade'
+  | 'status';
 
 function getCredorSortValue(c: Credor, key: CredorSortKey): string | number {
   switch (key) {
@@ -89,10 +95,7 @@ export function CredoresTable({ credores }: { credores: Credor[] }) {
           </thead>
           <tbody>
             {rows.map((c) => (
-              <tr
-                key={c.id}
-                className="border-b border-border/60 last:border-0 hover:bg-muted/30"
-              >
+              <tr key={c.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
                 <td className="px-5 py-4">
                   <p className="font-medium text-foreground">{c.razaoSocial}</p>
                   {c.nomeFantasia && (

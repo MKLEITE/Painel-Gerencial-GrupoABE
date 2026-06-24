@@ -21,9 +21,7 @@ export function FormattedDate({
   const [label, setLabel] = useState<string | null>(null);
 
   useEffect(() => {
-    setLabel(
-      new Date().toLocaleDateString(locale, { weekday, day, month }),
-    );
+    setLabel(new Date().toLocaleDateString(locale, { weekday, day, month }));
   }, [locale, weekday, day, month]);
 
   return <span className={className}>{label ?? '…'}</span>;

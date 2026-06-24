@@ -42,9 +42,7 @@ export function KpiSection({ titulo, subtitulo, icon: Icon, kpis, hideHeader }: 
             <p className="mt-1 font-display text-xl font-bold text-foreground sm:text-2xl">
               {kpi.valor}
             </p>
-            {kpi.detalhe && (
-              <p className="mt-1 text-[11px] text-muted-foreground">{kpi.detalhe}</p>
-            )}
+            {kpi.detalhe && <p className="mt-1 text-[11px] text-muted-foreground">{kpi.detalhe}</p>}
           </article>
         ))}
       </div>

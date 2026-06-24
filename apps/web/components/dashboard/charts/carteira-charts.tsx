@@ -14,9 +14,7 @@ export function CarteiraDonut() {
     return { ...item, inicio, fim: acumulado };
   });
 
-  const gradiente = segmentos
-    .map((s) => `${s.cor} ${s.inicio}% ${s.fim}%`)
-    .join(', ');
+  const gradiente = segmentos.map((s) => `${s.cor} ${s.inicio}% ${s.fim}%`).join(', ');
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
@@ -77,9 +75,7 @@ export function ComposicaoAtores({ atores }: { atores: AtorComposicao[] }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
       <div className="mb-5">
-        <h3 className="font-display text-lg font-semibold text-foreground">
-          Composição por ator
-        </h3>
+        <h3 className="font-display text-lg font-semibold text-foreground">Composição por ator</h3>
         <p className="text-sm text-muted-foreground">
           ABE consolida Delphi + ABE Web · clique para detalhar
         </p>

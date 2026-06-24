@@ -72,7 +72,13 @@ type CredorRow = {
   tenant: {
     nome: string;
     status: string;
-    usuarios?: { id: string; nome: string; email: string; telefone: string | null; ativo: boolean }[];
+    usuarios?: {
+      id: string;
+      nome: string;
+      email: string;
+      telefone: string | null;
+      ativo: boolean;
+    }[];
   };
   codigosCliente: { id: string; codCliente: string; rotulo: string | null }[];
 };
@@ -293,7 +299,8 @@ export class CredoresService {
         if (data.bairro !== undefined) credorData.bairro = data.bairro.trim();
         if (data.endereco !== undefined) credorData.endereco = data.endereco.trim();
         if (data.numero !== undefined) credorData.numero = data.numero.trim();
-        if (data.complemento !== undefined) credorData.complemento = data.complemento.trim() || null;
+        if (data.complemento !== undefined)
+          credorData.complemento = data.complemento.trim() || null;
         if (data.paginasAcesso !== undefined) credorData.paginasAcesso = data.paginasAcesso;
 
         await tx.credor.update({ where: { id }, data: credorData });

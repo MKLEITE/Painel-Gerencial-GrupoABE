@@ -3,11 +3,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { Calendar, Filter, MapPin, Package, User } from 'lucide-react';
 import type { FiltrosDashboard } from '@/lib/dashboard-mock';
-import {
-  OPCOES_COD_CLIENTE,
-  OPCOES_LOTE,
-  OPCOES_UF,
-} from '@/lib/dashboard-mock';
+import { OPCOES_COD_CLIENTE, OPCOES_LOTE, OPCOES_UF } from '@/lib/dashboard-mock';
 
 interface GlobalFiltersProps {
   filtros: FiltrosDashboard;
@@ -66,9 +62,7 @@ export function GlobalFilters({ filtros, onChange }: GlobalFiltersProps) {
         <FilterField label="Período" icon={Calendar}>
           <select
             value={filtros.periodo}
-            onChange={(e) =>
-              onChange({ periodo: e.target.value as FiltrosDashboard['periodo'] })
-            }
+            onChange={(e) => onChange({ periodo: e.target.value as FiltrosDashboard['periodo'] })}
             className={selectClass}
           >
             <option value="mes_atual">Mês atual</option>

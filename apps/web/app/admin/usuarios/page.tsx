@@ -15,7 +15,11 @@ function buildKpis(usuarios: AdminUsuario[]): KpiItem[] {
   const superAdmins = usuarios.filter((u) => u.papel === 'SUPER_ADMIN').length;
 
   return [
-    { rotulo: 'Administradores', valor: String(usuarios.length), detalhe: 'Equipe interna da plataforma' },
+    {
+      rotulo: 'Administradores',
+      valor: String(usuarios.length),
+      detalhe: 'Equipe interna da plataforma',
+    },
     { rotulo: 'Ativos', valor: String(ativos), detalhe: 'Com acesso liberado' },
     { rotulo: 'Inativos', valor: String(inativos), detalhe: 'Acesso bloqueado' },
     { rotulo: 'Super Admins', valor: String(superAdmins), detalhe: 'Acesso total ao /admin' },
@@ -66,16 +70,21 @@ export default function UsuariosPage() {
       <KpiSection hideHeader kpis={buildKpis(usuarios)} />
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-        <h3 className="mb-3 font-display text-sm font-semibold text-foreground">Sobre esta lista</h3>
+        <h3 className="mb-3 font-display text-sm font-semibold text-foreground">
+          Sobre esta lista
+        </h3>
         <p className="text-sm text-muted-foreground">
           Exibe apenas administradores internos da plataforma ABE. Usuários de credores (login no
-          dashboard) são criados automaticamente ao cadastrar um credor, na seção
-          &quot;Responsável pela Conta&quot;.
+          dashboard) são criados automaticamente ao cadastrar um credor, na seção &quot;Responsável
+          pela Conta&quot;.
         </p>
       </section>
 
       {erro && (
-        <p role="alert" className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <p
+          role="alert"
+          className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+        >
           {erro}
         </p>
       )}
@@ -83,7 +92,9 @@ export default function UsuariosPage() {
       <section>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-display text-base font-semibold text-foreground">Administradores da plataforma</h2>
+            <h2 className="font-display text-base font-semibold text-foreground">
+              Administradores da plataforma
+            </h2>
             <p className="text-xs text-muted-foreground">
               Equipe interna ABE — não inclui logins de credores.
             </p>

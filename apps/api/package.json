@@ -10,7 +10,7 @@
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "prisma generate && tsc --noEmit",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:db": "node scripts/test-db-connection.cjs",
     "db:provision": "node scripts/provision-database.cjs",
     "db:migrate": "prisma migrate deploy",
