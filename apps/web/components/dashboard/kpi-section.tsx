@@ -39,7 +39,7 @@ export function KpiSection({ titulo, subtitulo, icon: Icon, kpis, hideHeader }: 
             className="ring-gradient lift rounded-2xl border border-border bg-card p-4 shadow-soft"
           >
             <p className="text-xs font-medium text-muted-foreground">{kpi.rotulo}</p>
-            <p className="mt-1 font-display text-xl font-bold text-foreground sm:text-2xl">
+            <p className="mt-1 break-words font-display text-lg font-bold leading-tight text-foreground sm:text-xl">
               {kpi.valor}
             </p>
             {kpi.detalhe && <p className="mt-1 text-[11px] text-muted-foreground">{kpi.detalhe}</p>}

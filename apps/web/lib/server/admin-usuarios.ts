@@ -1,5 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { AdminError } from './admin-credores';
+import { PLATFORM_PAPEIS } from '@/lib/admin-constants';
+import { AdminError } from './admin-errors';
+
+const PLATFORM_PAPEL_VALUES = new Set<string>(PLATFORM_PAPEIS.map((p) => p.value));
+
+function assertPlatformPapel(papel: string): string {
+  const value = papel.trim();
+  if (!PLATFORM_PAPEL_VALUES.has(value)) {
+    throw new AdminError('Papel de usuário inválido.', 400);
+  }
+  return value;
+}
 
 export interface AdminUsuario {
   id: string;
@@ -79,6 +90,12 @@ export async function createPlatformUser(
     .maybeSingle();
   if (existing) throw new AdminError('E-mail já cadastrado.', 409);
 
+  if (data.senha.trim().length < 8) {
+    throw new AdminError('Senha deve ter no mínimo 8 caracteres.', 400);
+  }
+
+  const papel = assertPlatformPapel(data.papel);
+
   const { data: authUser, error: authError } = await db.auth.admin.createUser({
     email,
     password: data.senha,
@@ -102,7 +119,7 @@ export async function createPlatformUser(
       tenant_id: platformTenantId,
       email,
       nome: data.nome.trim(),
-      papel: data.papel,
+      papel,
       ativo: true,
     })
     .select('id, tenant_id, email, nome, papel, ativo')
@@ -126,10 +143,13 @@ export async function updatePlatformUser(
 
   const patch: Record<string, unknown> = {};
   if (data.nome !== undefined) patch.nome = data.nome.trim();
-  if (data.papel !== undefined) patch.papel = data.papel;
+  if (data.papel !== undefined) patch.papel = assertPlatformPapel(data.papel);
   if (data.ativo !== undefined) patch.ativo = data.ativo;
 
   if (data.senha !== undefined) {
+    if (data.senha.trim().length < 8) {
+      throw new AdminError('Senha deve ter no mínimo 8 caracteres.', 400);
+    }
     const { error } = await db.auth.admin.updateUserById(id, { password: data.senha });
     if (error) throw error;
   }

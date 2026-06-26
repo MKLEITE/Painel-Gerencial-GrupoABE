@@ -1,12 +1,122 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function updateSession(request: NextRequest) {
+type RouteProfile = { papel: string; ativo: boolean } | null;
+
+function loginRedirect(request: NextRequest) {
+  const url = request.nextUrl.clone();
+  url.pathname = '/login';
+  return NextResponse.redirect(url);
+}
+
+function dashboardRedirect(request: NextRequest) {
+  const url = request.nextUrl.clone();
+  url.pathname = '/dashboard';
+  return NextResponse.redirect(url);
+}
+
+function adminRedirect(request: NextRequest) {
+  const url = request.nextUrl.clone();
+  url.pathname = '/admin/credores';
+  return NextResponse.redirect(url);
+}
+
+function applyRouteHeaders(request: NextRequest, pathname: string) {
+  const isLoginRoute = pathname === '/login' || pathname.startsWith('/login/');
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+  if (isLoginRoute) {
+    requestHeaders.set('x-login-route', '1');
+  }
+  return { requestHeaders, isLoginRoute };
+}
+
+function mergeCookies(source: NextResponse, target: NextResponse) {
+  source.cookies.getAll().forEach((cookie) => {
+    target.cookies.set(cookie.name, cookie.value, cookie);
+  });
+}
+
+function finalizeResponse(
+  supabaseResponse: NextResponse,
+  isLoginRoute: boolean,
+  requestHeaders: Headers,
+) {
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+  mergeCookies(supabaseResponse, response);
+
+  if (isLoginRoute) {
+    response.cookies.set('login-route', '1', { path: '/', sameSite: 'lax' });
+  } else {
+    response.cookies.delete('login-route');
+  }
+
+  return response;
+}
+
+async function loadProfile(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+): Promise<RouteProfile> {
+  const { data } = await supabase
+    .from('usuarios')
+    .select('papel, ativo')
+    .eq('id', userId)
+    .maybeSingle();
+  return data ?? null;
+}
+
+function guardRoute(
+  request: NextRequest,
+  pathname: string,
+  userId: string | undefined,
+  profile: RouteProfile,
+): NextResponse | null {
+  const isLoginRoute = pathname === '/login' || pathname.startsWith('/login/');
+  const isAdminRoute = pathname.startsWith('/admin');
+  const isDashboardRoute = pathname.startsWith('/dashboard');
+  const isProtected = isAdminRoute || isDashboardRoute;
+
+  if (isProtected && !userId) {
+    return loginRedirect(request);
+  }
+
+  if (userId && isLoginRoute) {
+    if (profile?.ativo && profile.papel === 'SUPER_ADMIN') return adminRedirect(request);
+    if (profile?.ativo) return dashboardRedirect(request);
+    return loginRedirect(request);
+  }
+
+  if (userId && isAdminRoute) {
+    if (!profile?.ativo) return loginRedirect(request);
+    if (profile.papel !== 'SUPER_ADMIN') return dashboardRedirect(request);
+  }
+
+  if (userId && isDashboardRoute) {
+    if (!profile?.ativo) return loginRedirect(request);
+  }
+
+  return null;
+}
+
+/** Renova sessão Supabase, aplica guardas de rota e repassa pathname ao layout. */
+export async function handleMiddleware(request: NextRequest): Promise<NextResponse> {
+  const pathname = request.nextUrl.pathname;
+
+  if (pathname === '/') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { requestHeaders, isLoginRoute } = applyRouteHeaders(request, pathname);
 
   if (!url || !key) {
-    return NextResponse.next({ request });
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   let supabaseResponse = NextResponse.next({ request });
@@ -28,7 +138,22 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  return supabaseResponse;
+  const profile = user ? await loadProfile(supabase, user.id) : null;
+  const guardResponse = guardRoute(request, pathname, user?.id, profile);
+
+  if (guardResponse) {
+    mergeCookies(supabaseResponse, guardResponse);
+    return guardResponse;
+  }
+
+  return finalizeResponse(supabaseResponse, isLoginRoute, requestHeaders);
+}
+
+/** @deprecated Use handleMiddleware */
+export async function updateSession(request: NextRequest) {
+  return handleMiddleware(request);
 }

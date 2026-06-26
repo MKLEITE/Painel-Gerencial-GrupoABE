@@ -14,6 +14,7 @@ export function useDataTable<T, K extends string>(
   items: T[],
   getValue: (item: T, key: K) => string | number | null | undefined,
   pageSize = TABLE_PAGE_SIZE,
+  resetDeps: readonly unknown[] = [],
 ) {
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<K | null>(null);
@@ -22,7 +23,7 @@ export function useDataTable<T, K extends string>(
 
   useEffect(() => {
     setPage(1);
-  }, [items.length]);
+  }, [items.length, ...resetDeps]);
 
   function toggleSort(key: K, kind: SortKind) {
     if (sortKey === key) {

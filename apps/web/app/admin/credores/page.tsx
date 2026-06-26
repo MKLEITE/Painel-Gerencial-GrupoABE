@@ -75,7 +75,7 @@ export default function CredoresPage() {
               Lista de credores
             </h2>
             <p className="text-xs text-muted-foreground">
-              Razão social, CNPJ, CodCliente e status — clique em Editar para alterar.
+              Códigos em primeiro · busca por nome, CNPJ ou código · filtros por responsável.
             </p>
           </div>
           <Link

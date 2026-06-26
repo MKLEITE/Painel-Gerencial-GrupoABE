@@ -1,5 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { generatePassword } from './generate-password';
+import {
+  assertCnpjDigits,
+  assertEstado,
+  assertPaginasAcesso,
+  assertSetores,
+} from './admin-validators';
+import { AdminError, mapDbError } from './admin-errors';
+
+export { AdminError, mapDbError };
 
 export interface CredorResponsavel {
   id: string;
@@ -29,7 +38,11 @@ export interface CredorPublic {
   numero: string | null;
   complemento: string | null;
   paginasAcesso: string[];
+  comercialPrincipal: string | null;
+  prepostoWeb: string | null;
+  prepostoDelphi: string | null;
   codClientePrincipal: string | null;
+  abeDelphiClienteId: string | null;
   codigosCliente: { id: string; codCliente: string; rotulo: string | null }[];
   responsavel: CredorResponsavel | null;
   criadoEm: string;
@@ -52,10 +65,21 @@ type CredorRow = {
   numero: string | null;
   complemento: string | null;
   paginas_acesso: string[];
+  comercial_principal: string | null;
+  preposto_web: string | null;
+  preposto_delphi: string | null;
   cod_cliente_principal: string | null;
+  abe_delphi_cliente_id: string | null;
   criado_em: string;
   tenants: { nome: string; status: string } | { nome: string; status: string }[];
-  codigos_cliente: { id: string; cod_cliente: string; rotulo: string | null }[];
+  codigos_cliente: {
+    id: string;
+    cod_cliente: string;
+    rotulo: string | null;
+    papel?: 'matriz' | 'filial';
+    razao_social?: string | null;
+    cnpj?: string | null;
+  }[];
 };
 
 function tenantOf(row: CredorRow): { nome: string; status: string } {
@@ -83,11 +107,18 @@ function toPublic(row: CredorRow, responsavel: CredorResponsavel | null): Credor
     numero: row.numero,
     complemento: row.complemento,
     paginasAcesso: row.paginas_acesso ?? ['dashboard'],
+    comercialPrincipal: row.comercial_principal,
+    prepostoWeb: row.preposto_web,
+    prepostoDelphi: row.preposto_delphi,
     codClientePrincipal: row.cod_cliente_principal,
+    abeDelphiClienteId: row.abe_delphi_cliente_id,
     codigosCliente: (row.codigos_cliente ?? []).map((c) => ({
       id: c.id,
       codCliente: c.cod_cliente,
       rotulo: c.rotulo,
+      papel: c.papel,
+      razaoSocial: c.razao_social,
+      cnpj: c.cnpj,
     })),
     responsavel,
     criadoEm: row.criado_em,
@@ -97,9 +128,10 @@ function toPublic(row: CredorRow, responsavel: CredorResponsavel | null): Credor
 const CREDOR_SELECT = `
   id, tenant_id, razao_social, nome_fantasia, cnpj, telefone, email_comercial,
   setores, cep, cidade, estado, bairro, endereco, numero, complemento,
-  paginas_acesso, cod_cliente_principal, criado_em,
+  paginas_acesso, cod_cliente_principal, abe_delphi_cliente_id, criado_em,
+  comercial_principal, preposto_web, preposto_delphi,
   tenants ( nome, status ),
-  codigos_cliente ( id, cod_cliente, rotulo )
+  codigos_cliente ( id, cod_cliente, rotulo, papel, razao_social, cnpj )
 `;
 
 async function fetchResponsavel(
@@ -185,10 +217,10 @@ export async function createCredor(
     throw new AdminError('Os e-mails do responsável não conferem.', 400);
   }
 
-  const cnpj = data.cnpj.replace(/\D/g, '');
-  if (cnpj.length !== 14) {
-    throw new AdminError('CNPJ deve conter 14 dígitos.', 400);
-  }
+  const cnpj = assertCnpjDigits(data.cnpj);
+  assertSetores(data.setores);
+  assertPaginasAcesso(data.paginasAcesso);
+  assertEstado(data.estado);
 
   const emailResp = data.responsavel.email.toLowerCase().trim();
   const { data: existingUser } = await db
@@ -202,6 +234,9 @@ export async function createCredor(
   }
 
   const senha = data.responsavel.senha?.trim() || generatePassword(12);
+  if (data.responsavel.senha?.trim() && data.responsavel.senha.trim().length < 8) {
+    throw new AdminError('Senha deve ter no mínimo 8 caracteres.', 400);
+  }
   const tenantNome = data.nomeFantasia?.trim() || data.razaoSocial.trim();
 
   const { data: authUser, error: authError } = await db.auth.admin.createUser({
@@ -240,15 +275,15 @@ export async function createCredor(
       cnpj,
       telefone: data.telefone.replace(/\D/g, ''),
       email_comercial: data.emailComercial.toLowerCase().trim(),
-      setores: data.setores,
+      setores: assertSetores(data.setores),
       cep: data.cep.replace(/\D/g, ''),
       cidade: data.cidade.trim(),
-      estado: data.estado.toUpperCase(),
+      estado: assertEstado(data.estado),
       bairro: data.bairro.trim(),
       endereco: data.endereco.trim(),
       numero: data.numero.trim(),
       complemento: data.complemento?.trim() || null,
-      paginas_acesso: data.paginasAcesso.length ? data.paginasAcesso : ['dashboard'],
+      paginas_acesso: assertPaginasAcesso(data.paginasAcesso),
     })
     .select('id')
     .single();
@@ -301,6 +336,9 @@ export async function updateCredor(
     numero?: string;
     complemento?: string;
     paginasAcesso?: string[];
+    comercialPrincipal?: string;
+    prepostoWeb?: string;
+    prepostoDelphi?: string;
   },
 ): Promise<CredorPublic> {
   const { data: existing, error: findError } = await db
@@ -317,22 +355,25 @@ export async function updateCredor(
   if (data.razaoSocial !== undefined) patch.razao_social = data.razaoSocial.trim();
   if (data.nomeFantasia !== undefined) patch.nome_fantasia = data.nomeFantasia.trim() || null;
   if (data.cnpj !== undefined) {
-    const cnpj = data.cnpj.replace(/\D/g, '');
-    if (cnpj.length !== 14) throw new AdminError('CNPJ deve conter 14 dígitos.', 400);
-    patch.cnpj = cnpj;
+    patch.cnpj = assertCnpjDigits(data.cnpj);
   }
   if (data.telefone !== undefined) patch.telefone = data.telefone.replace(/\D/g, '');
   if (data.emailComercial !== undefined)
     patch.email_comercial = data.emailComercial.toLowerCase().trim();
-  if (data.setores !== undefined) patch.setores = data.setores;
+  if (data.setores !== undefined) patch.setores = assertSetores(data.setores);
   if (data.cep !== undefined) patch.cep = data.cep.replace(/\D/g, '');
   if (data.cidade !== undefined) patch.cidade = data.cidade.trim();
-  if (data.estado !== undefined) patch.estado = data.estado.toUpperCase();
+  if (data.estado !== undefined) patch.estado = assertEstado(data.estado);
   if (data.bairro !== undefined) patch.bairro = data.bairro.trim();
   if (data.endereco !== undefined) patch.endereco = data.endereco.trim();
   if (data.numero !== undefined) patch.numero = data.numero.trim();
   if (data.complemento !== undefined) patch.complemento = data.complemento.trim() || null;
-  if (data.paginasAcesso !== undefined) patch.paginas_acesso = data.paginasAcesso;
+  if (data.paginasAcesso !== undefined)
+    patch.paginas_acesso = assertPaginasAcesso(data.paginasAcesso);
+  if (data.comercialPrincipal !== undefined)
+    patch.comercial_principal = data.comercialPrincipal.trim() || null;
+  if (data.prepostoWeb !== undefined) patch.preposto_web = data.prepostoWeb.trim() || null;
+  if (data.prepostoDelphi !== undefined) patch.preposto_delphi = data.prepostoDelphi.trim() || null;
 
   if (Object.keys(patch).length) {
     const { error } = await db.from('credores').update(patch).eq('id', id);
@@ -348,6 +389,106 @@ export async function updateCredor(
   const credor = await getCredor(db, id);
   if (!credor) throw new AdminError('Credor não encontrado.', 404);
   return credor;
+}
+
+export async function createResponsavelCredor(
+  db: SupabaseClient,
+  credorId: string,
+  data: {
+    nome: string;
+    email: string;
+    confirmarEmail: string;
+    telefone?: string;
+    senha?: string;
+    fotoUrl?: string | null;
+  },
+): Promise<{ responsavel: CredorResponsavel; credenciais: { email: string; senha: string } }> {
+  if (data.email.toLowerCase() !== data.confirmarEmail.toLowerCase()) {
+    throw new AdminError('Os e-mails do responsável não conferem.', 400);
+  }
+
+  const nome = data.nome.trim();
+  if (!nome) throw new AdminError('Informe o nome do responsável.', 400);
+
+  const { data: credor, error: credorError } = await db
+    .from('credores')
+    .select('tenant_id')
+    .eq('id', credorId)
+    .maybeSingle();
+
+  if (credorError) throw credorError;
+  if (!credor) throw new AdminError('Credor não encontrado.', 404);
+
+  const { data: existingResp } = await db
+    .from('usuarios')
+    .select('id')
+    .eq('tenant_id', credor.tenant_id)
+    .eq('papel', 'ADMIN_CREDOR')
+    .maybeSingle();
+
+  if (existingResp) {
+    throw new AdminError('Este credor já possui login. Use "Redefinir senha" na edição.', 409);
+  }
+
+  const emailResp = data.email.toLowerCase().trim();
+  const { data: existingUser } = await db
+    .from('usuarios')
+    .select('id')
+    .ilike('email', emailResp)
+    .maybeSingle();
+
+  if (existingUser) {
+    throw new AdminError('E-mail do responsável já cadastrado.', 409);
+  }
+
+  const senha = data.senha?.trim() || generatePassword(12);
+  if (data.senha?.trim() && data.senha.trim().length < 8) {
+    throw new AdminError('Senha inicial deve ter no mínimo 8 caracteres.', 400);
+  }
+
+  const { data: authUser, error: authError } = await db.auth.admin.createUser({
+    email: emailResp,
+    password: senha,
+    email_confirm: true,
+    user_metadata: { nome },
+  });
+
+  if (authError) {
+    if (authError.message.includes('already') || authError.status === 422) {
+      throw new AdminError('E-mail do responsável já cadastrado.', 409);
+    }
+    throw authError;
+  }
+
+  const userId = authUser.user.id;
+
+  const { error: usuarioError } = await db.from('usuarios').insert({
+    id: userId,
+    tenant_id: credor.tenant_id,
+    email: emailResp,
+    nome,
+    telefone: data.telefone?.replace(/\D/g, '') || null,
+    foto_url: data.fotoUrl?.trim() || null,
+    papel: 'ADMIN_CREDOR',
+    ativo: true,
+  });
+
+  if (usuarioError) {
+    await db.auth.admin.deleteUser(userId);
+    throw usuarioError;
+  }
+
+  return {
+    responsavel: {
+      id: userId,
+      nome,
+      email: emailResp,
+      telefone: data.telefone?.replace(/\D/g, '') || null,
+      fotoUrl: data.fotoUrl?.trim() || null,
+      ativo: true,
+    },
+    credenciais: { email: emailResp, senha },
+  };
 }
 
 export async function updateResponsavelCredor(
@@ -410,6 +551,9 @@ export async function updateResponsavelCredor(
 
   if (data.senha !== undefined) {
     senhaRetorno = data.senha.trim() || generatePassword(12);
+    if (senhaRetorno.length < 8) {
+      throw new AdminError('Senha deve ter no mínimo 8 caracteres.', 400);
+    }
     const { error: authPassError } = await db.auth.admin.updateUserById(usuario.id, {
       password: senhaRetorno,
     });
@@ -449,22 +593,3 @@ export async function updateResponsavelCredor(
     ...(senhaRetorno ? { senha: senhaRetorno } : {}),
   };
 }
-
-export class AdminError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = 'AdminError';
-  }
-}
-
-function mapDbError(err: unknown): never {
-  if (err instanceof AdminError) throw err;
-  const code = (err as { code?: string })?.code;
-  if (code === '23505') throw new AdminError('CNPJ ou e-mail já cadastrado.', 409);
-  throw err;
-}
-
-export { mapDbError };

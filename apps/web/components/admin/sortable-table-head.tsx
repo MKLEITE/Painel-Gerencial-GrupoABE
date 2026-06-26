@@ -9,7 +9,7 @@ interface SortableTableHeadProps {
   direction: SortDirection | null;
   onSort: () => void;
   className?: string;
-  align?: 'left' | 'right';
+  align?: 'left' | 'center' | 'right';
 }
 
 export function SortableTableHead({
@@ -20,15 +20,16 @@ export function SortableTableHead({
   className = '',
   align = 'left',
 }: SortableTableHeadProps) {
+  const alignClass =
+    align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left';
+
   return (
-    <th
-      className={`px-5 py-3.5 font-semibold ${align === 'right' ? 'text-right' : ''} ${className}`}
-    >
+    <th className={`px-4 py-3.5 font-semibold ${alignClass} ${className}`}>
       <button
         type="button"
         onClick={onSort}
         className={`inline-flex items-center gap-1 transition-colors hover:text-foreground ${
-          align === 'right' ? 'ml-auto' : ''
+          align === 'center' ? 'mx-auto' : align === 'right' ? 'ml-auto' : ''
         } ${active ? 'text-foreground' : ''}`}
       >
         {label}

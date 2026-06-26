@@ -3,6 +3,13 @@
  * Ver docs/05-frontend.md e docs/06-seguranca-e-lgpd.md.
  */
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+dotenv.config({ path: path.join(repoRoot, '.env') });
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const isDev = process.env.NODE_ENV !== 'production';
 const useStandalone = !process.env.VERCEL && process.env.DOCKER_BUILD === '1';

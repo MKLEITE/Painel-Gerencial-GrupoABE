@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Loader2, RefreshCw, User, X } from 'lucide-react';
+import { Copy, KeyRound, Loader2, ShieldCheck, User, UserPlus, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { FormField } from '@/components/admin/form-field';
 import { updateResponsavelCredor } from '@/lib/admin-api';
@@ -22,44 +22,75 @@ export interface ResponsavelValues {
 interface ResponsavelSectionProps {
   mode: 'create' | 'edit';
   credorId?: string;
+  hasResponsavel?: boolean;
   values: ResponsavelValues;
   onChange: (patch: Partial<ResponsavelValues>) => void;
+  onCredenciaisGeradas?: (credenciais: { email: string; senha: string }) => void;
 }
 
-export function ResponsavelSection({ mode, credorId, values, onChange }: ResponsavelSectionProps) {
+export function ResponsavelSection({
+  mode,
+  credorId,
+  hasResponsavel = mode === 'create',
+  values,
+  onChange,
+  onCredenciaisGeradas,
+}: ResponsavelSectionProps) {
   const inputFotoRef = useRef<HTMLInputElement>(null);
   const [copiado, setCopiado] = useState(false);
-  const [redefinindo, setRedefinindo] = useState(false);
-  const [msgSenha, setMsgSenha] = useState<string | null>(null);
+  const [aplicandoSenha, setAplicandoSenha] = useState(false);
   const [erroSenha, setErroSenha] = useState<string | null>(null);
   const [erroFoto, setErroFoto] = useState<string | null>(null);
+  const [senhaManual, setSenhaManual] = useState('');
+  const [confirmarSenhaManual, setConfirmarSenhaManual] = useState('');
+  const [modoSenhaManual, setModoSenhaManual] = useState(false);
 
-  function regenerarSenha() {
+  const isNovoLogin = mode === 'create' || (mode === 'edit' && !hasResponsavel);
+
+  function gerarSenhaInicial() {
     onChange({ senha: generateClientPassword() });
-    setMsgSenha(null);
+    setErroSenha(null);
   }
 
-  async function copiarSenha(texto?: string) {
-    await navigator.clipboard.writeText(texto ?? values.senha);
+  async function copiarTexto(texto: string) {
+    await navigator.clipboard.writeText(texto);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   }
 
-  async function redefinirSenhaNoServidor() {
+  async function aplicarNovaSenha(senha: string) {
     if (!credorId) return;
+    if (senha.length < 8) {
+      setErroSenha('A senha deve ter no mínimo 8 caracteres.');
+      return;
+    }
+
     setErroSenha(null);
-    setMsgSenha(null);
-    setRedefinindo(true);
-    const novaSenha = generateClientPassword();
+    setAplicandoSenha(true);
     try {
-      const result = await updateResponsavelCredor(credorId, { senha: novaSenha });
-      onChange({ senha: result.senha ?? novaSenha });
-      setMsgSenha('Senha redefinida com sucesso. Copie e repasse ao responsável.');
+      const result = await updateResponsavelCredor(credorId, { senha });
+      const email = values.email.trim();
+      onCredenciaisGeradas?.({ email, senha: result.senha ?? senha });
+      setSenhaManual('');
+      setConfirmarSenhaManual('');
+      setModoSenhaManual(false);
     } catch (err) {
       setErroSenha(toApiError(err).title);
     } finally {
-      setRedefinindo(false);
+      setAplicandoSenha(false);
     }
+  }
+
+  async function gerarEaplicarSenha() {
+    await aplicarNovaSenha(generateClientPassword());
+  }
+
+  async function aplicarSenhaManual() {
+    if (senhaManual !== confirmarSenhaManual) {
+      setErroSenha('As senhas não conferem.');
+      return;
+    }
+    await aplicarNovaSenha(senhaManual);
   }
 
   function selecionarFoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -78,22 +109,39 @@ export function ResponsavelSection({ mode, credorId, values, onChange }: Respons
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
-      onChange({ fotoUrl: reader.result as string });
-    };
+    reader.onload = () => onChange({ fotoUrl: reader.result as string });
     reader.onerror = () => setErroFoto('Não foi possível ler a imagem.');
     reader.readAsDataURL(file);
   }
 
-  function removerFoto() {
-    setErroFoto(null);
-    onChange({ fotoUrl: null });
-  }
-
-  const senhaExibida = mode === 'edit' && !values.senha ? '••••••••••••' : values.senha;
-
   return (
     <section className="space-y-6">
+      {isNovoLogin ? (
+        <div className="flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-foreground">
+          <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div>
+            <p className="font-medium">
+              {mode === 'create' ? 'Criar login do responsável' : 'Configurar primeiro acesso'}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              {mode === 'create'
+                ? 'Após cadastrar, copie e-mail e senha e repasse ao responsável.'
+                : 'Este credor ainda não tem login. Preencha os dados abaixo e salve para criar o acesso.'}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-3 rounded-xl border border-success/30 bg-success/5 px-4 py-3 text-sm text-foreground">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+          <div>
+            <p className="font-medium">Login ativo</p>
+            <p className="mt-1 text-muted-foreground">
+              E-mail de acesso: <span className="font-medium text-foreground">{values.email}</span>
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-8 lg:grid-cols-[200px_1fr]">
         <div className="flex flex-col items-center gap-3 pt-2">
           <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted/40">
@@ -106,7 +154,7 @@ export function ResponsavelSection({ mode, credorId, values, onChange }: Respons
                 />
                 <button
                   type="button"
-                  onClick={removerFoto}
+                  onClick={() => onChange({ fotoUrl: null })}
                   className="absolute right-0 top-0 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/80 text-background hover:bg-foreground"
                   title="Remover foto"
                 >
@@ -131,9 +179,6 @@ export function ResponsavelSection({ mode, credorId, values, onChange }: Respons
           >
             Selecionar foto de perfil
           </button>
-          <p className="text-center text-[11px] text-muted-foreground">
-            (máx. 1 MB, formato imagem)
-          </p>
           {erroFoto && <p className="text-center text-[11px] text-danger">{erroFoto}</p>}
         </div>
 
@@ -143,7 +188,7 @@ export function ResponsavelSection({ mode, credorId, values, onChange }: Respons
               type="text"
               value={values.nome}
               onChange={(e) => onChange({ nome: e.target.value })}
-              required={mode === 'create'}
+              required={isNovoLogin}
               className={underlineInputClass}
               placeholder="Nome do responsável"
             />
@@ -185,63 +230,184 @@ export function ResponsavelSection({ mode, credorId, values, onChange }: Respons
         </UnderlineField>
       </div>
 
-      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-        {mode === 'create'
-          ? 'Este e-mail será usado para login no painel do credor. Envio automático de senha será habilitado futuramente — por ora, copie a senha gerada abaixo.'
-          : 'Altere o e-mail de login se o responsável mudou. A confirmação evita erros de digitação. Redefina a senha abaixo quando necessário.'}
+      {isNovoLogin ? (
+        <SenhaInicialCard
+          senha={values.senha}
+          onGerar={gerarSenhaInicial}
+          onCopiar={() =>
+            copiarTexto(`Login: ${values.email || '(e-mail acima)'}\nSenha: ${values.senha}`)
+          }
+          copiado={copiado}
+          descricao={
+            mode === 'create'
+              ? 'Esta senha será criada junto com o credor. Guarde-a — você poderá copiá-la na tela seguinte.'
+              : 'Esta senha será usada no primeiro acesso. Ao salvar, copie e repasse ao responsável.'
+          }
+        />
+      ) : (
+        <RedefinirSenhaCard
+          aplicando={aplicandoSenha}
+          erro={erroSenha}
+          modoManual={modoSenhaManual}
+          senhaManual={senhaManual}
+          confirmarSenhaManual={confirmarSenhaManual}
+          onToggleManual={() => {
+            setModoSenhaManual((v) => !v);
+            setErroSenha(null);
+          }}
+          onSenhaManualChange={setSenhaManual}
+          onConfirmarSenhaManualChange={setConfirmarSenhaManual}
+          onGerarEaplicar={gerarEaplicarSenha}
+          onAplicarManual={aplicarSenhaManual}
+        />
+      )}
+    </section>
+  );
+}
+
+function SenhaInicialCard({
+  senha,
+  onGerar,
+  onCopiar,
+  copiado,
+  descricao,
+}: {
+  senha: string;
+  onGerar: () => void;
+  onCopiar: () => void;
+  copiado: boolean;
+  descricao: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <KeyRound className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold text-foreground">Senha inicial</h3>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">{descricao}</p>
+
+      <div className="rounded-lg border border-border bg-background px-4 py-3 font-mono text-base font-semibold tracking-wide text-foreground">
+        {senha || '—'}
       </div>
 
-      <div className="max-w-xl">
-        <FormField
-          label={mode === 'create' ? 'Senha de acesso (gerada)' : 'Senha de acesso'}
-          hint={
-            mode === 'create'
-              ? 'Clique em regenerar se quiser outra senha antes de cadastrar.'
-              : 'Gere uma nova senha e clique em "Redefinir senha" para aplicar no login.'
-          }
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onGerar}
+          className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted"
         >
-          <div className="flex flex-wrap gap-2">
-            <input
-              type="text"
-              readOnly
-              value={senhaExibida}
-              className="h-11 min-w-[200px] flex-1 rounded-xl border border-input bg-muted/40 px-3 text-sm text-foreground"
-            />
-            <button
-              type="button"
-              onClick={regenerarSenha}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-              title="Gerar nova senha"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => copiarSenha()}
-              disabled={mode === 'edit' && !values.senha}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
-              title="Copiar senha"
-            >
-              <Copy className="h-4 w-4" />
-            </button>
-            {mode === 'edit' && (
+          Gerar outra senha
+        </button>
+        <button
+          type="button"
+          onClick={onCopiar}
+          disabled={!senha}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-40"
+        >
+          <Copy className="h-4 w-4" />
+          {copiado ? 'Copiado!' : 'Copiar login e senha'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RedefinirSenhaCard({
+  aplicando,
+  erro,
+  modoManual,
+  senhaManual,
+  confirmarSenhaManual,
+  onToggleManual,
+  onSenhaManualChange,
+  onConfirmarSenhaManualChange,
+  onGerarEaplicar,
+  onAplicarManual,
+}: {
+  aplicando: boolean;
+  erro: string | null;
+  modoManual: boolean;
+  senhaManual: string;
+  confirmarSenhaManual: string;
+  onToggleManual: () => void;
+  onSenhaManualChange: (v: string) => void;
+  onConfirmarSenhaManualChange: (v: string) => void;
+  onGerarEaplicar: () => void;
+  onAplicarManual: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-5">
+      <div className="mb-2 flex items-center gap-2">
+        <KeyRound className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold text-foreground">Redefinir senha</h3>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Por segurança, a senha atual não pode ser exibida. Gere uma nova senha e aplique
+        imediatamente — ela será mostrada para você copiar.
+      </p>
+
+      <button
+        type="button"
+        onClick={onGerarEaplicar}
+        disabled={aplicando}
+        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-70 sm:w-auto"
+      >
+        {aplicando ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <KeyRound className="h-4 w-4" />
+        )}
+        Gerar e aplicar nova senha
+      </button>
+
+      <div className="mt-4 border-t border-border/60 pt-4">
+        <button
+          type="button"
+          onClick={onToggleManual}
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          {modoManual ? 'Ocultar senha manual' : 'Prefiro definir a senha manualmente'}
+        </button>
+
+        {modoManual && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <FormField label="Nova senha" hint="Mínimo 8 caracteres">
+              <input
+                type="text"
+                value={senhaManual}
+                onChange={(e) => onSenhaManualChange(e.target.value)}
+                className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                placeholder="Digite a nova senha"
+                autoComplete="new-password"
+              />
+            </FormField>
+            <FormField label="Confirmar senha">
+              <input
+                type="text"
+                value={confirmarSenhaManual}
+                onChange={(e) => onConfirmarSenhaManualChange(e.target.value)}
+                className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                placeholder="Repita a senha"
+                autoComplete="new-password"
+              />
+            </FormField>
+            <div className="sm:col-span-2">
               <button
                 type="button"
-                onClick={redefinirSenhaNoServidor}
-                disabled={redefinindo}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-70"
+                onClick={onAplicarManual}
+                disabled={aplicando || !senhaManual}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-medium hover:bg-muted disabled:opacity-40"
               >
-                {redefinindo && <Loader2 className="h-4 w-4 animate-spin" />}
-                Redefinir senha
+                {aplicando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Aplicar senha manual
               </button>
-            )}
+            </div>
           </div>
-        </FormField>
-        {copiado && <p className="mt-1 text-xs text-success">Senha copiada!</p>}
-        {msgSenha && <p className="mt-1 text-xs text-success">{msgSenha}</p>}
-        {erroSenha && <p className="mt-1 text-xs text-danger">{erroSenha}</p>}
+        )}
       </div>
-    </section>
+
+      {erro && <p className="mt-3 text-xs text-danger">{erro}</p>}
+    </div>
   );
 }
 

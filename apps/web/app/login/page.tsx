@@ -1,19 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Eye,
-  EyeOff,
-  Loader2,
-  Lock,
-  Mail,
-  ShieldCheck,
-  Sparkles,
-} from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, Sparkles } from 'lucide-react';
 import { login, adminHomePath } from '@/lib/auth';
 import { toApiError } from '@/lib/api-client';
 import { Logo } from '@/components/brand/logo';
@@ -92,20 +81,10 @@ export default function LoginPage() {
 
         {/* ============ FORMULÁRIO (direita) — sem overlay, foto pura atrás ============ */}
         <section className="relative flex min-h-screen flex-col bg-transparent">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-end p-6">
-            <Link
-              href="/"
-              className="login-chrome-btn pointer-events-auto group inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
-              Voltar
-            </Link>
-          </div>
-
-          <div className="relative z-10 flex flex-1 items-center justify-center px-6 pb-12 pt-20">
+          <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-12">
             <GlassLoginPanel>
               <div className="mb-6 flex justify-center">
-                <Logo href="/" height={44} />
+                <Logo href="/login" height={44} />
               </div>
 
               <div className="mb-8 text-center">

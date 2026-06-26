@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { adminDb, jsonError, requireSuperAdmin } from '@/lib/server/admin-auth';
-import { AdminError } from '@/lib/server/admin-credores';
+import { AdminError } from '@/lib/server/admin-errors';
 import { getPlatformUser, updatePlatformUser } from '@/lib/server/admin-usuarios';
+import { parseRequestJson } from '@/lib/server/admin-validators';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,8 +29,12 @@ export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
 
   try {
-    const body = await request.json();
-    const usuario = await updatePlatformUser(adminDb(), id, body);
+    const body = await parseRequestJson(request);
+    const usuario = await updatePlatformUser(
+      adminDb(),
+      id,
+      body as Parameters<typeof updatePlatformUser>[2],
+    );
     return NextResponse.json(usuario);
   } catch (err) {
     if (err instanceof AdminError) {

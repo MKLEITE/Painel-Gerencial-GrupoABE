@@ -205,11 +205,7 @@
 @layer components {
   /* Fundo institucional (azul → navy) para áreas de destaque. Sóbrio. */
   .bg-brand {
-    background-image: linear-gradient(
-      135deg,
-      hsl(var(--primary)),
-      hsl(var(--primary-deep))
-    );
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-deep)));
   }
 
   /* Acento dourado discreto para detalhes pontuais. */
@@ -219,11 +215,7 @@
 
   /* Texto com gradiente da marca (azul → dourado), uso pontual em destaques. */
   .text-gradient {
-    background-image: linear-gradient(
-      120deg,
-      hsl(var(--primary)),
-      hsl(var(--accent))
-    );
+    background-image: linear-gradient(120deg, hsl(var(--primary)), hsl(var(--accent)));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -303,9 +295,7 @@
   }
 
   /* Fallback quando backdrop-filter não está disponível */
-  @supports not (
-    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
-  ) {
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .glass-login__blur {
       background-color: hsl(0 0% 0% / 0.42);
       backdrop-filter: none;
@@ -378,16 +368,17 @@
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
-    background: linear-gradient(
-      90deg,
-      transparent,
-      hsl(0 0% 100% / 0.18),
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.18), transparent);
   }
   .sheen:hover::after {
     animation: shimmer 0.9s ease;
   }
+}
+
+/* Ponteiro customizado com logos da marca */
+html.brand-custom-cursor,
+html.brand-custom-cursor * {
+  cursor: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

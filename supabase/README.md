@@ -21,6 +21,11 @@ Projeto: `https://vkzefmedwxvpqcivparz.supabase.co`
    pnpm db:seed
    ```
 
+5. Dashboard com dados reais (ABE WEB):
+   - Execute `supabase/migrations/002_dashboard_carteira.sql` no SQL Editor
+   - Edite `scripts/sync-abeweb-dashboard.mjs` com sua query SQL
+   - Rode `pnpm sync:abeweb --demo` (teste) ou `pnpm sync:abeweb` (banco real)
+
 ## Usuários de desenvolvimento (seed)
 
 | E-mail | Senha | Papel | Destino |

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { adminDb, jsonError, requireSuperAdmin } from '@/lib/server/admin-auth';
-import { AdminError } from '@/lib/server/admin-credores';
+import { AdminError } from '@/lib/server/admin-errors';
 import { createPlatformUser, listPlatformUsers } from '@/lib/server/admin-usuarios';
+import { parseRequestJson } from '@/lib/server/admin-validators';
 
 export async function GET() {
   const auth = await requireSuperAdmin();
@@ -24,8 +25,11 @@ export async function POST(request: Request) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const body = await request.json();
-    const usuario = await createPlatformUser(adminDb(), body);
+    const body = await parseRequestJson(request);
+    const usuario = await createPlatformUser(
+      adminDb(),
+      body as Parameters<typeof createPlatformUser>[1],
+    );
     return NextResponse.json(usuario, { status: 201 });
   } catch (err) {
     if (err instanceof AdminError) {

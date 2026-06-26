@@ -84,7 +84,7 @@ async function main() {
       endereco: 'Av. Paulista',
       numero: '1000',
       paginas_acesso: ['dashboard'],
-      cod_cliente_principal: 'DEMO-001',
+      cod_cliente_principal: '40032',
     },
     { onConflict: 'tenant_id' },
   );

@@ -2,19 +2,20 @@
 
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import type { AtorComposicao, RoscaItem } from '@/lib/dashboard-types';
 import { CARTEIRA_ROSCA } from '@/lib/dashboard-mock';
 
-export function CarteiraDonut() {
-  const total = CARTEIRA_ROSCA.reduce((s, i) => s + i.pct, 0);
+export function CarteiraDonut({ segmentos = CARTEIRA_ROSCA }: { segmentos?: RoscaItem[] }) {
+  const total = segmentos.reduce((s, i) => s + i.pct, 0);
   let acumulado = 0;
 
-  const segmentos = CARTEIRA_ROSCA.map((item) => {
+  const partes = segmentos.map((item) => {
     const inicio = acumulado;
     acumulado += item.pct;
     return { ...item, inicio, fim: acumulado };
   });
 
-  const gradiente = segmentos.map((s) => `${s.cor} ${s.inicio}% ${s.fim}%`).join(', ');
+  const gradiente = partes.map((s) => `${s.cor} ${s.inicio}% ${s.fim}%`).join(', ');
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
@@ -41,7 +42,7 @@ export function CarteiraDonut() {
         </div>
 
         <ul className="grid flex-1 gap-2 sm:grid-cols-2">
-          {CARTEIRA_ROSCA.map((item) => (
+          {segmentos.map((item) => (
             <li key={item.label} className="flex items-center gap-2 text-sm">
               <span
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -57,16 +58,6 @@ export function CarteiraDonut() {
       </div>
     </div>
   );
-}
-
-interface AtorComposicao {
-  id: string;
-  nome: string;
-  descricao: string;
-  valor: string;
-  pct: number;
-  logo: string;
-  detalhe?: { delphi: string; web: string };
 }
 
 export function ComposicaoAtores({ atores }: { atores: AtorComposicao[] }) {

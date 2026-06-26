@@ -29,6 +29,8 @@ export default function NovoCredorPage() {
 
       {credenciais && (
         <CredenciaisModal
+          title="Credor cadastrado"
+          description="Copie e repasse as credenciais ao responsável."
           email={credenciais.email}
           senha={credenciais.senha}
           onClose={() => router.push('/admin/credores')}

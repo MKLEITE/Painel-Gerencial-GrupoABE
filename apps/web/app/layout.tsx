@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Sora } from 'next/font/google';
 import { cookies, headers } from 'next/headers';
+import { BrandExperience } from '@/components/brand/brand-experience';
 import { ThemeProvider } from '@/components/theme/theme-provider';
 import './globals.css';
 
@@ -52,7 +53,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       suppressHydrationWarning
     >
       <body>
-        <ThemeProvider initialTheme={theme}>{children}</ThemeProvider>
+        <ThemeProvider initialTheme={theme}>
+          {children}
+          <BrandExperience />
+        </ThemeProvider>
       </body>
     </html>
   );

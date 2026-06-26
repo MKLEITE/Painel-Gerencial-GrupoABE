@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb, jsonError, requireSuperAdmin } from '@/lib/server/admin-auth';
 import { AdminError, createCredor, listCredores } from '@/lib/server/admin-credores';
+import { parseRequestJson } from '@/lib/server/admin-validators';
 
 export async function GET() {
   const auth = await requireSuperAdmin();
@@ -20,8 +21,8 @@ export async function POST(request: Request) {
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const body = await request.json();
-    const result = await createCredor(adminDb(), body);
+    const body = await parseRequestJson(request);
+    const result = await createCredor(adminDb(), body as Parameters<typeof createCredor>[1]);
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof AdminError) {

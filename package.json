@@ -15,6 +15,18 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "db:seed": "node --env-file=.env supabase/seed.mjs",
+    "sync:abeweb": "node --env-file=.env scripts/sync-abeweb-dashboard.mjs --force",
+    "sync:abeweb:check": "node --env-file=.env scripts/sync-abeweb-dashboard.mjs --check",
+    "sync:abeweb:incremental": "node --env-file=.env scripts/sync-abeweb-dashboard.mjs --incremental",
+    "sync:abeweb:watch": "node --env-file=.env scripts/sync-abeweb-watch.mjs",
+    "etl:abe": "node --env-file=.env jobs/etl-abe.mjs",
+    "test:abedelphi": "node --env-file=.env scripts/test-abedelphi-connection.mjs",
+    "explore:abeweb-cliente": "node --env-file=.env scripts/explore-abeweb-cliente.mjs",
+    "explore:abedelphi-cliente": "node --env-file=.env scripts/explore-abedelphi-cliente.mjs",
+    "provision:credores": "node --env-file=.env scripts/provision-credores.mjs",
+    "provision:credores:dry": "node --env-file=.env scripts/provision-credores.mjs --dry-run",
+    "backfill:codigos": "node --env-file=.env scripts/backfill-codigos-cadastro.mjs",
+    "backfill:codigos:dry": "node --env-file=.env scripts/backfill-codigos-cadastro.mjs --dry-run",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "prepare": "husky"
@@ -33,5 +45,8 @@
     "*.{ts,tsx,js,jsx,json,md,yml,yaml,css}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "mssql": "^12.6.0"
   }
 }

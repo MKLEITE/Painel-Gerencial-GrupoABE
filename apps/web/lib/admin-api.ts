@@ -28,10 +28,46 @@ export interface Credor {
   numero: string | null;
   complemento: string | null;
   paginasAcesso: string[];
+  comercialPrincipal: string | null;
+  prepostoWeb: string | null;
+  prepostoDelphi: string | null;
   codClientePrincipal: string | null;
-  codigosCliente: { id: string; codCliente: string; rotulo: string | null }[];
+  abeDelphiClienteId: string | null;
+  codigosCliente: CredorCodigoResumo[];
   responsavel: CredorResponsavel | null;
   criadoEm: string;
+}
+
+export interface CredorCodigoResumo {
+  id: string;
+  codCliente: string;
+  rotulo: string | null;
+  papel?: 'matriz' | 'filial';
+  razaoSocial?: string | null;
+  cnpj?: string | null;
+}
+
+export interface CredorCodigoUnidade {
+  id: string;
+  codCliente: string;
+  rotulo: string | null;
+  papel: 'matriz' | 'filial';
+  sistema: 'WEB' | 'Delphi';
+  razaoSocial: string | null;
+  nomeFantasia: string | null;
+  cnpj: string | null;
+  telefone: string | null;
+  emailComercial: string | null;
+  cep: string | null;
+  cidade: string | null;
+  estado: string | null;
+  bairro: string | null;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  comercialPrincipal: string | null;
+  preposto: string | null;
+  legadoSyncEm: string | null;
 }
 
 export interface AdminUsuario {
@@ -90,6 +126,53 @@ export function updateCredor(
   body: Partial<Omit<CreateCredorPayload, 'responsavel'>>,
 ): Promise<Credor> {
   return apiFetch(`/admin/credores/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+export function listCredorCodigos(credorId: string): Promise<CredorCodigoUnidade[]> {
+  return apiFetch(`/admin/credores/${credorId}/codigos`);
+}
+
+export function updateCredorCodigo(
+  credorId: string,
+  codigoId: string,
+  body: Partial<{
+    razaoSocial: string;
+    nomeFantasia: string;
+    cnpj: string;
+    telefone: string;
+    emailComercial: string;
+    cep: string;
+    cidade: string;
+    estado: string;
+    bairro: string;
+    endereco: string;
+    numero: string;
+    complemento: string;
+    comercialPrincipal: string;
+    preposto: string;
+  }>,
+): Promise<CredorCodigoUnidade> {
+  return apiFetch(`/admin/credores/${credorId}/codigos/${codigoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function createResponsavelCredor(
+  credorId: string,
+  body: {
+    nome: string;
+    email: string;
+    confirmarEmail: string;
+    telefone?: string;
+    senha?: string;
+    fotoUrl?: string | null;
+  },
+): Promise<{ responsavel: CredorResponsavel; credenciais: { email: string; senha: string } }> {
+  return apiFetch(`/admin/credores/${credorId}/responsavel`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export function updateResponsavelCredor(

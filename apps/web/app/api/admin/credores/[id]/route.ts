@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb, jsonError, requireSuperAdmin } from '@/lib/server/admin-auth';
 import { AdminError, getCredor, updateCredor } from '@/lib/server/admin-credores';
+import { parseRequestJson } from '@/lib/server/admin-validators';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -27,8 +28,8 @@ export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
 
   try {
-    const body = await request.json();
-    const credor = await updateCredor(adminDb(), id, body);
+    const body = await parseRequestJson(request);
+    const credor = await updateCredor(adminDb(), id, body as Parameters<typeof updateCredor>[2]);
     return NextResponse.json(credor);
   } catch (err) {
     if (err instanceof AdminError) {

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Building2, ChevronRight, LogOut, Menu, Shield, Users, X } from 'lucide-react';
 import { Logo } from '@/components/brand/logo';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { FormattedDate } from '@/components/ui/formatted-date';
@@ -100,19 +101,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   if (carregando || redirecionando || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative h-12 w-12">
-            <span className="absolute inset-0 rounded-full bg-primary/30 animate-pulse-ring" />
-            <span className="bg-brand relative flex h-12 w-12 items-center justify-center rounded-full text-primary-foreground">
-              <Shield className="h-5 w-5" />
-            </span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {redirecionando ? 'Redirecionando…' : 'Carregando administração…'}
-          </p>
-        </div>
-      </main>
+      <LoadingScreen message={redirecionando ? 'Redirecionando…' : 'Carregando administração…'} />
     );
   }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BarChart3,
   ChevronRight,
@@ -19,8 +19,21 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import { logout, me, type AuthUser } from '@/lib/auth';
 import type { ApiError } from '@/lib/api-client';
+import { fetchDashboard } from '@/lib/dashboard-api';
+import {
+  mergeOpcoesFiltro,
+  normalizarFiltros,
+  OPCOES_FILTRO_PADRAO,
+} from '@/lib/dashboard-filters';
+import {
+  FILTROS_INICIAIS,
+  MOCK_DASHBOARD_PAYLOAD,
+  type DashboardPayload,
+  type FiltrosDashboard,
+} from '@/lib/dashboard-mock';
 import { Logo } from '@/components/brand/logo';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { FormattedDate } from '@/components/ui/formatted-date';
@@ -35,16 +48,6 @@ import {
   FaixaIdadeChart,
 } from '@/components/dashboard/charts/periodo-charts';
 import { AcordosTable, BaixasTable } from '@/components/dashboard/detail-tables';
-import {
-  COMPOSICAO_ATORES,
-  FILTROS_INICIAIS,
-  KPI_BORDERO,
-  KPI_CARTEIRA_ATIVA,
-  KPI_FINANCEIRO,
-  TABELA_ACORDOS,
-  TABELA_BAIXAS,
-  type FiltrosDashboard,
-} from '@/lib/dashboard-mock';
 
 const NAV = [
   { label: 'Visão geral', icon: LayoutDashboard, active: true },
@@ -62,6 +65,13 @@ export default function DashboardPage() {
   const [redirecionando, setRedirecionando] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosDashboard>(FILTROS_INICIAIS);
+  const [dados, setDados] = useState<DashboardPayload>(MOCK_DASHBOARD_PAYLOAD);
+  const [fonte, setFonte] = useState<'abeweb' | 'mock'>('mock');
+  const [sincronizadoEm, setSincronizadoEm] = useState<string | null>(null);
+  const [carregandoDados, setCarregandoDados] = useState(false);
+  const [opcoesFiltro, setOpcoesFiltro] = useState(OPCOES_FILTRO_PADRAO);
+  /** Só mantém datas digitadas pelo usuário; padrão vem sempre da API (min inclusão + hoje). */
+  const datasAlteradasPeloUsuario = useRef(false);
 
   useEffect(() => {
     me()
@@ -72,6 +82,62 @@ export default function DashboardPage() {
       })
       .finally(() => setCarregando(false));
   }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelado = false;
+    setCarregandoDados(true);
+
+    fetchDashboard(filtros)
+      .then((res) => {
+        if (cancelado) return;
+        setDados(res.payload);
+        setFonte(res.fonte);
+        setSincronizadoEm(res.sincronizadoEm);
+        const opcoes = mergeOpcoesFiltro(res.payload);
+        setOpcoesFiltro(opcoes);
+        setFiltros((prev) => {
+          const patch = normalizarFiltros(prev, opcoes);
+          const datas = res.filtrosAplicados;
+          const dataInicio = datasAlteradasPeloUsuario.current
+            ? prev.dataInicio || datas?.dataInicio || ''
+            : datas?.dataInicio || prev.dataInicio || '';
+          const dataFinal = datasAlteradasPeloUsuario.current
+            ? prev.dataFinal || datas?.dataFinal || ''
+            : datas?.dataFinal || prev.dataFinal || '';
+
+          const codCliente = patch.codCliente ?? prev.codCliente;
+          const loteEnvio = patch.loteEnvio ?? prev.loteEnvio;
+          const uf = patch.uf ?? prev.uf;
+
+          if (
+            codCliente === prev.codCliente &&
+            loteEnvio === prev.loteEnvio &&
+            uf === prev.uf &&
+            dataInicio === prev.dataInicio &&
+            dataFinal === prev.dataFinal
+          ) {
+            return prev;
+          }
+
+          return { ...prev, codCliente, loteEnvio, uf, dataInicio, dataFinal };
+        });
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setDados(MOCK_DASHBOARD_PAYLOAD);
+        setFonte('mock');
+        setSincronizadoEm(null);
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoDados(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [user, filtros]);
 
   async function handleLogout() {
     try {
@@ -84,24 +150,15 @@ export default function DashboardPage() {
   }
 
   function atualizarFiltros(patch: Partial<FiltrosDashboard>) {
+    if ('dataInicio' in patch || 'dataFinal' in patch) {
+      datasAlteradasPeloUsuario.current = true;
+    }
     setFiltros((prev) => ({ ...prev, ...patch }));
   }
 
   if (carregando || redirecionando || !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative h-12 w-12">
-            <span className="absolute inset-0 rounded-full bg-primary/30 animate-pulse-ring" />
-            <span className="bg-brand relative flex h-12 w-12 items-center justify-center rounded-full text-primary-foreground">
-              <LayoutDashboard className="h-5 w-5" />
-            </span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {redirecionando ? 'Redirecionando…' : 'Carregando seu painel…'}
-          </p>
-        </div>
-      </main>
+      <LoadingScreen message={redirecionando ? 'Redirecionando…' : 'Carregando seu painel…'} />
     );
   }
 
@@ -201,10 +258,21 @@ export default function DashboardPage() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-medium text-success sm:inline-flex">
-              <Radio className="h-3 w-3 animate-pulse" />
-              Ao vivo
+            <span
+              className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium sm:inline-flex ${
+                fonte === 'abeweb'
+                  ? 'border-success/30 bg-success/10 text-success'
+                  : 'border-muted-foreground/30 bg-muted text-muted-foreground'
+              }`}
+            >
+              <Radio className={`h-3 w-3 ${fonte === 'abeweb' ? 'animate-pulse' : ''}`} />
+              {fonte === 'abeweb'
+                ? sincronizadoEm
+                  ? `ABE WEB · ${new Date(sincronizadoEm).toLocaleString('pt-BR')}`
+                  : 'ABE WEB'
+                : 'Demonstração'}
             </span>
+            {carregandoDados && <span className="text-xs text-muted-foreground">Atualizando…</span>}
             <ThemeToggle />
           </div>
         </header>
@@ -234,54 +302,58 @@ export default function DashboardPage() {
           </section>
 
           {/* Filtros globais */}
-          <GlobalFilters filtros={filtros} onChange={atualizarFiltros} />
+          <GlobalFilters
+            filtros={filtros}
+            opcoesCodCliente={opcoesFiltro.codCliente}
+            opcoesLote={opcoesFiltro.lote}
+            opcoesUf={opcoesFiltro.uf}
+            datasDisponiveis={dados.meta?.datasBordero}
+            onChange={atualizarFiltros}
+          />
 
           {/* Borderô */}
           <KpiSection
             titulo="Recebimento do credor (Borderô)"
             subtitulo="Valor enviado, processos e idade média no envio"
             icon={FileInput}
-            kpis={KPI_BORDERO}
+            kpis={dados.kpiBordero}
           />
 
-          {/* Financeiro */}
           <KpiSection
             titulo="Resultado financeiro"
             subtitulo="ABE vs pagamento direto · efetividade geral"
             icon={TrendingUp}
-            kpis={KPI_FINANCEIRO}
+            kpis={dados.kpiFinanceiro}
           />
 
-          {/* Carteira ativa */}
           <KpiSection
             titulo="Carteira ativa em negociação"
             subtitulo="Processos em tratativa e ticket médio"
             icon={Handshake}
-            kpis={KPI_CARTEIRA_ATIVA}
+            kpis={dados.kpiCarteiraAtiva}
           />
 
-          {/* Rosca + Composição por ator */}
           <section className="grid gap-4 lg:grid-cols-2">
-            <CarteiraDonut />
-            <ComposicaoAtores atores={COMPOSICAO_ATORES} />
+            <CarteiraDonut segmentos={dados.carteiraRosca} />
+            <ComposicaoAtores atores={dados.composicaoAtores} />
           </section>
 
           {/* Gráficos período */}
           <section className="grid gap-4 lg:grid-cols-2">
-            <EnviadoRecebidoChart />
-            <EfetividadeIdadeChart />
+            <EnviadoRecebidoChart dados={dados.enviadoRecebidoMensal} />
+            <EfetividadeIdadeChart dados={dados.efetividadePorIdade} />
           </section>
 
-          <FaixaIdadeChart />
+          <FaixaIdadeChart dados={dados.faixaIdadeComparativo} />
 
           {/* Tabelas acordos + baixas */}
           <section className="grid gap-4 lg:grid-cols-2">
-            <AcordosTable linhas={TABELA_ACORDOS} />
-            <BaixasTable linhas={TABELA_BAIXAS} />
+            <AcordosTable linhas={dados.tabelaAcordos} />
+            <BaixasTable linhas={dados.tabelaBaixas} />
           </section>
 
           {/* Geográfico */}
-          <AnaliseGeografica />
+          <AnaliseGeografica dados={dados.metricasUf} />
         </main>
       </div>
     </div>

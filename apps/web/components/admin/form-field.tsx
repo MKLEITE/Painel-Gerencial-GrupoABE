@@ -1,5 +1,7 @@
-import { Loader2 } from 'lucide-react';
-import type { ReactNode } from 'react';
+'use client';
+
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { useEffect, type ReactNode } from 'react';
 
 const controlClass =
   'h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition-colors focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60';
@@ -107,6 +109,46 @@ export function FormTextarea({
   );
 }
 
+export type SaveFeedbackState = {
+  variant: 'success' | 'error';
+  message: string;
+} | null;
+
+export function SaveFeedback({
+  feedback,
+  onDismiss,
+}: {
+  feedback: NonNullable<SaveFeedbackState>;
+  onDismiss?: () => void;
+}) {
+  useEffect(() => {
+    if (feedback.variant !== 'success' || !onDismiss) return;
+    const timer = setTimeout(onDismiss, 4500);
+    return () => clearTimeout(timer);
+  }, [feedback, onDismiss]);
+
+  const isSuccess = feedback.variant === 'success';
+
+  return (
+    <div
+      role={isSuccess ? 'status' : 'alert'}
+      aria-live="polite"
+      className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-sm font-medium shadow-sm animate-fade-in ${
+        isSuccess
+          ? 'border-success/50 bg-success/15 text-success'
+          : 'border-danger/50 bg-danger/15 text-danger'
+      }`}
+    >
+      {isSuccess ? (
+        <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
+      ) : (
+        <AlertCircle className="h-5 w-5 shrink-0" aria-hidden />
+      )}
+      <span className="min-w-0 leading-snug">{feedback.message}</span>
+    </div>
+  );
+}
+
 export function FormSection({
   title,
   description,
@@ -134,28 +176,50 @@ export function FormActions({
   onCancel,
   submitLabel,
   salvando,
+  onSave,
+  hideCancel,
+  feedback,
+  onFeedbackDismiss,
 }: {
-  onCancel: () => void;
+  onCancel?: () => void;
   submitLabel: string;
   salvando: boolean;
+  onSave?: () => void;
+  hideCancel?: boolean;
+  feedback?: SaveFeedbackState;
+  onFeedbackDismiss?: () => void;
 }) {
   return (
-    <div className="flex flex-col-reverse gap-3 border-t border-border px-6 py-4 sm:flex-row sm:justify-end sm:px-8">
-      <button
-        type="button"
-        onClick={onCancel}
-        className="h-11 rounded-xl border border-border px-5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+    <div className="border-t border-border px-6 py-4 sm:px-8">
+      <div
+        className={`flex flex-col gap-3 ${feedback ? 'sm:flex-row sm:items-center sm:justify-between' : 'sm:flex-row sm:justify-end'}`}
       >
-        Cancelar
-      </button>
-      <button
-        type="submit"
-        disabled={salvando}
-        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground disabled:opacity-70"
-      >
-        {salvando && <Loader2 className="h-4 w-4 animate-spin" />}
-        {submitLabel}
-      </button>
+        {feedback && (
+          <div className="min-w-0 flex-1">
+            <SaveFeedback feedback={feedback} onDismiss={onFeedbackDismiss} />
+          </div>
+        )}
+        <div className="flex shrink-0 flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          {!hideCancel && onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="h-11 rounded-xl border border-border px-5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              Cancelar
+            </button>
+          )}
+          <button
+            type={onSave ? 'button' : 'submit'}
+            onClick={onSave}
+            disabled={salvando}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70"
+          >
+            {salvando && <Loader2 className="h-4 w-4 animate-spin" />}
+            {submitLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
